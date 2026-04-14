@@ -1,0 +1,668 @@
+{% extends "staff/base.html" %}
+{% load static %}
+
+{% block title %}Staff Dashboard{% endblock %}
+{% block nav_dashboard %}active-nav{% endblock %}
+{% block page_title %}My Dashboard{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+<style>
+    .gis-assistant-log {
+        min-height: 92px;
+        max-height: 148px;
+        overflow-y: auto;
+        border-radius: 0.75rem;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(241, 245, 249, 0.9));
+        padding: 0.55rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+    }
+
+    .gis-assistant-chip {
+        font-size: 0.69rem;
+        border-radius: 9999px;
+        padding: 0.22rem 0.55rem;
+        border: 1px solid rgba(148, 163, 184, 0.32);
+        background: #ffffff;
+        color: #334155;
+        transition: all .18s ease;
+    }
+
+    .gis-assistant-chip:hover {
+        border-color: rgba(0, 114, 206, 0.45);
+        color: #0f172a;
+        background: #f8fbff;
+    }
+
+    .gis-msg {
+        border-radius: 0.6rem;
+        padding: 0.38rem 0.52rem;
+        font-size: 0.72rem;
+        line-height: 1.35;
+    }
+
+    .gis-msg-user {
+        align-self: flex-end;
+        background: rgba(0, 114, 206, 0.12);
+        border: 1px solid rgba(0, 114, 206, 0.24);
+        color: #0f172a;
+    }
+
+    .gis-msg-ai {
+        align-self: flex-start;
+        background: #ffffff;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        color: #334155;
+    }
+
+    .assistant-fab {
+        position: fixed;
+        right: 1.2rem;
+        bottom: 1.15rem;
+        z-index: 70;
+        width: 3.4rem;
+        height: 3.4rem;
+        border-radius: 9999px;
+        background: linear-gradient(145deg, #0072CE, #005ba1);
+        color: #fff;
+        box-shadow: 0 20px 32px -18px rgba(0, 91, 161, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform .2s ease;
+    }
+
+    .assistant-fab:hover { transform: translateY(-1px) scale(1.03); }
+
+    .assistant-panel {
+        position: fixed;
+        right: 1.2rem;
+        bottom: 1.2rem;
+        z-index: 71;
+        width: min(380px, calc(100vw - 1.5rem));
+        border-radius: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.26);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        box-shadow: 0 25px 45px -24px rgba(15, 23, 42, 0.45);
+        overflow: hidden;
+    }
+
+    .assistant-panel.hidden { display: none; }
+
+    .assistant-header {
+        padding: 0.7rem 0.8rem;
+        background: linear-gradient(145deg, #1e3a5f, #0072CE);
+        color: white;
+    }
+
+    .assistant-body {
+        padding: 0.65rem;
+    }
+
+    .dark .assistant-panel {
+        background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+        border-color: rgba(71, 85, 105, 0.62);
+    }
+
+    .dark .gis-assistant-log {
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(17, 24, 39, 0.92));
+        border-color: rgba(71, 85, 105, 0.6);
+    }
+
+    .dark .gis-assistant-chip {
+        background: rgba(15, 23, 42, 0.95);
+        border-color: rgba(71, 85, 105, 0.68);
+        color: #cbd5e1;
+    }
+
+    .dark .gis-assistant-chip:hover {
+        background: rgba(30, 41, 59, 0.95);
+        border-color: rgba(59, 130, 246, 0.65);
+        color: #e2e8f0;
+    }
+
+    .dark .gis-msg-user {
+        color: #dbeafe;
+        background: rgba(30, 58, 138, 0.35);
+        border-color: rgba(59, 130, 246, 0.45);
+    }
+
+    .dark .gis-msg-ai {
+        color: #cbd5e1;
+        background: rgba(15, 23, 42, 0.95);
+        border-color: rgba(71, 85, 105, 0.6);
+    }
+</style>
+
+<div class="dashboard-z space-y-4" x-data="{ mapSize: localStorage.getItem('dashboardMapSize') || 'compact' }">
+    <!-- Welcome Message -->
+    <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-xl shadow-lg">
+        <h2 class="text-xl font-bold">Welcome, {{ user.get_full_name }}!</h2>
+        <p class="mt-1 text-sm opacity-90">Here's an overview of your assigned projects.</p>
+    </div>
+
+    <!-- Summary Cards - Z-Format Responsive Layout -->
+    <div class="summary-cards">
+        <div class="bg-white shadow rounded-lg p-5 border-l-4 border-blue-500">
+            <h3 class="text-sm font-medium text-gray-500">My Assignments</h3>
+            <p class="mt-2 text-3xl font-bold text-gray-800">{{ my_tasks_count }}</p>
+        </div>
+        <div class="bg-white shadow rounded-lg p-5 border-l-4 border-yellow-500">
+            <h3 class="text-sm font-medium text-gray-500">Pending</h3>
+            <p class="mt-2 text-3xl font-bold text-yellow-600">{{ pending_tasks }}</p>
+        </div>
+        <div class="bg-white shadow rounded-lg p-5 border-l-4 border-blue-400">
+            <h3 class="text-sm font-medium text-gray-500">In Progress</h3>
+            <p class="mt-2 text-3xl font-bold text-blue-600">{{ in_progress_tasks }}</p>
+        </div>
+        <div class="bg-white shadow rounded-lg p-5 border-l-4 border-green-500">
+            <h3 class="text-sm font-medium text-gray-500">Completed</h3>
+            <p class="mt-2 text-3xl font-bold text-green-600">{{ completed_tasks }}</p>
+        </div>
+        <div class="bg-white shadow rounded-lg p-5 border-l-4 border-red-500">
+            <h3 class="text-sm font-medium text-gray-500">Delayed</h3>
+            <p class="mt-2 text-3xl font-bold text-red-600">{{ delayed_tasks }}</p>
+        </div>
+    </div>
+
+    <div class="dashboard-bento">
+        <!-- Map Section - Compact with Expandable + Resize -->
+        <div class="bg-white p-4 rounded-xl shadow-lg bento-card bento-map">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-lg font-semibold text-gray-700">My Project Locations</h3>
+                <div class="flex items-center gap-2">
+                    <button @click="mapSize = mapSize === 'compact' ? 'large' : 'compact'; localStorage.setItem('dashboardMapSize', mapSize); setTimeout(() => { if (typeof map !== 'undefined') { map.invalidateSize(); } }, 120);"
+                            class="table-size-btn"
+                            type="button">
+                        <span class="material-icons" x-text="mapSize === 'compact' ? 'zoom_out_map' : 'fit_screen'"></span>
+                        <span x-text="mapSize === 'compact' ? 'Larger Map' : 'Compact Map'"></span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="taskMap" class="map-compact rounded-lg border border-gray-300" :class="mapSize === 'large' ? 'map-size-large' : 'map-size-compact'"></div>
+
+            <div class="mt-2 flex flex-wrap gap-3 text-xs">
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span> Pending</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> In Progress</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green-500"></span> Completed</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> Delayed</span>
+            </div>
+        </div>
+
+        <!-- Assignment Status Chart -->
+        <div class="bg-white p-4 rounded-xl shadow-lg bento-card bento-chart">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">My Assignment Status</h3>
+            {% if my_tasks_count > 0 %}
+            <div class="chart-container-responsive chart-container-tight">
+                <canvas id="taskStatusChart"></canvas>
+            </div>
+            {% else %}
+            <div class="flex flex-col items-center justify-center py-8 text-gray-500">
+                <span class="material-icons text-5xl mb-2 text-gray-300">assignment</span>
+                <p class="text-base font-medium">No projects assigned yet</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Projects I'm Working On -->
+        <div class="bg-white p-4 rounded-xl shadow-lg bento-card bento-projects">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Projects I'm Managing</h3>
+            {% if my_projects.count > 0 %}
+            <div class="space-y-2 max-h-52 overflow-y-auto">
+                {% for project in my_projects %}
+                <div class="p-2.5 bg-gray-50 rounded-lg border-l-4 
+                    {% if project.status == 'completed' %}border-green-500
+                    {% elif project.status == 'ongoing' %}border-blue-500
+                    {% elif project.status == 'terminated' %}border-red-500
+                    {% else %}border-gray-400{% endif %}">
+                    <h4 class="font-medium text-gray-800 text-sm">{{ project.project_title|truncatewords:8 }}</h4>
+                    <span class="inline-block mt-1 px-2 py-0.5 text-xs rounded-full
+                        {% if project.status == 'completed' %}bg-green-100 text-green-700
+                        {% elif project.status == 'ongoing' %}bg-blue-100 text-blue-700
+                        {% elif project.status == 'terminated' %}bg-red-100 text-red-700
+                        {% else %}bg-gray-100 text-gray-700{% endif %}">
+                        {{ project.status|title }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="flex flex-col items-center justify-center py-8 text-gray-500">
+                <span class="material-icons text-5xl mb-2 text-gray-300">work_outline</span>
+                <p class="text-base font-medium">No projects yet</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<button id="assistantFab" type="button" class="assistant-fab advanced-feature" title="Open Assistant" aria-label="Open Assistant">
+    <span class="material-icons">smart_toy</span>
+</button>
+
+<div id="assistantPanel" class="assistant-panel advanced-feature hidden" role="dialog" aria-label="AI Assistant" data-ai-url="{% url 'assistant_ai_chat_url' %}">
+    <div class="assistant-header flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+            <span class="material-icons text-[18px]">smart_toy</span>
+            <div>
+                <p class="text-sm font-semibold leading-tight">TaskPro AI Assistant</p>
+                <p class="text-[11px] text-blue-100">AI + local system summary</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <label class="flex items-center gap-1.5 text-[11px] text-white/90">
+                <input id="assistantModeToggle" type="checkbox" class="h-3.5 w-3.5" checked>
+                AI mode
+            </label>
+            <button id="assistantHide" type="button" class="h-7 w-7 rounded-md bg-white/18 hover:bg-white/25 flex items-center justify-center" title="Hide Assistant" aria-label="Hide Assistant">
+                <span class="material-icons text-[16px]">close</span>
+            </button>
+        </div>
+    </div>
+    <div class="assistant-body">
+        <p class="text-[11px] text-slate-500 mb-2">Ask about your projects, tasks, municipalities, names, and statuses.</p>
+        <div class="flex flex-wrap gap-1.5 mb-2.5" id="gisAssistantPresets">
+            <button type="button" class="gis-assistant-chip" data-question="Hello">Hello</button>
+            <button type="button" class="gis-assistant-chip" data-question="Show me totals">Totals</button>
+            <button type="button" class="gis-assistant-chip" data-question="How many tasks are pending?">Pending tasks</button>
+            <button type="button" class="gis-assistant-chip" data-question="How many ongoing projects?">Ongoing projects</button>
+            <button type="button" class="gis-assistant-chip" data-question="Show me project names">Project names</button>
+            <button type="button" class="gis-assistant-chip" data-question="What can this system do?">System capabilities</button>
+        </div>
+        <div id="gisAssistantLog" class="gis-assistant-log">
+            <div class="gis-msg gis-msg-ai">Hi! I can answer about your assigned projects and tasks.</div>
+        </div>
+        <div class="mt-2 flex items-center gap-2">
+            <input id="gisAssistantInput" type="text" placeholder="Ask anything about your data..."
+                class="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-[#0072CE]/30 focus:border-[#0072CE] transition-all">
+            <button id="gisAssistantAsk" type="button"
+                class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#0072CE] text-white hover:bg-[#005ba1] transition">
+                Ask
+            </button>
+        </div>
+        <div class="mt-1.5 flex items-center gap-2 text-[11px] text-slate-400">
+            <span class="material-icons text-xs">lock</span>
+            AI + local • Uses summary only
+        </div>
+    </div>
+</div>
+
+<script>
+// Task Map - Compact & Expanded versions
+const TASKS = JSON.parse('{{ tasks_json|escapejs }}');
+const STAFF_PROJECTS = JSON.parse('{{ projects_json|escapejs }}');
+const BILIRAN_CENTER = [11.55, 124.47];
+
+// Initialize compact map
+const map = L.map('taskMap').setView(BILIRAN_CENTER, 11);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+
+// Biliran Province bounds (SW corner to NE corner)
+const BILIRAN_BOUNDS = L.latLngBounds(
+  [11.4700, 124.3400],  // Southwest corner
+  [11.7200, 124.6200]   // Northeast corner
+);
+
+const CenterControl = L.Control.extend({
+  options: { position: 'topleft' },
+  onAdd: function(map) {
+    const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+    const button = L.DomUtil.create('a', '', container);
+    button.href = '#';
+    button.title = 'Center on Biliran Province';
+    button.innerHTML = '<span style="font-size:18px;">📍</span>';
+    button.style.cssText = 'display:flex;align-items:center;justify-content:center;width:34px;height:34px;background:#fff;cursor:pointer;';
+    L.DomEvent.disableClickPropagation(button);
+    L.DomEvent.on(button, 'click', function(e) {
+      L.DomEvent.preventDefault(e);
+      map.fitBounds(BILIRAN_BOUNDS, { padding: [20, 20] });
+    });
+    return container;
+  }
+});
+map.addControl(new CenterControl());
+
+const statusColors = {
+    pending: '#f59e0b',
+    in_progress: '#3b82f6',
+    completed: '#10b981',
+    delayed: '#ef4444'
+};
+
+function coloredIcon(color) {
+    return L.divIcon({
+        html: '<div style="width:20px;height:20px;border-radius:50%;background:' + color + ';border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div>',
+        className: '',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+    });
+}
+
+function addMapMarkers(mapInstance) {
+    const bounds = [];
+    TASKS.forEach(task => {
+        if (task.latitude && task.longitude) {
+            const color = statusColors[task.status] || '#6b7280';
+            const marker = L.marker([task.latitude, task.longitude], { icon: coloredIcon(color) });
+                        const dueText = task.due_date ? new Date(task.due_date).toLocaleDateString() : 'N/A';
+                        const projectStatus = (task.project_status || 'N/A').replaceAll('_', ' ');
+                        const municipality = task.project_municipality || 'Unknown';
+                        const province = task.project_province || 'Biliran';
+                        const beneficiary = task.project_beneficiary || 'N/A';
+                        const popup = `
+                                <div style="min-width:220px;">
+                                    <strong>${task.project_title || 'Untitled Project'}</strong><br/>
+                                    <small class="text-gray-500">${municipality}, ${province}</small><br/>
+                                    <div style="margin-top:.35rem;font-size:.9rem;color:#555;">
+                                        Task: ${task.title || 'N/A'}<br/>
+                                        Task Status: ${(task.status || 'N/A').replaceAll('_', ' ')}<br/>
+                                        Project Status: ${projectStatus}<br/>
+                                        Due Date: ${dueText}<br/>
+                                        Beneficiary: ${beneficiary}
+                                    </div>
+                                </div>`;
+                        marker.bindPopup(popup);
+            marker.addTo(mapInstance);
+            bounds.push([task.latitude, task.longitude]);
+        }
+    });
+
+    if (bounds.length > 0) {
+        mapInstance.fitBounds(bounds, { padding: [30, 30] });
+    }
+}
+
+// Add markers to compact map
+addMapMarkers(map);
+
+const assistantPanel = document.getElementById('assistantPanel');
+const assistantFab = document.getElementById('assistantFab');
+const assistantHide = document.getElementById('assistantHide');
+const assistantLog = document.getElementById('gisAssistantLog');
+const assistantInput = document.getElementById('gisAssistantInput');
+const assistantAsk = document.getElementById('gisAssistantAsk');
+const assistantPresets = document.querySelectorAll('#gisAssistantPresets [data-question]');
+const assistantModeToggle = document.getElementById('assistantModeToggle');
+
+let aiEnabled = localStorage.getItem('assistantAiEnabled') !== 'false';
+if (assistantModeToggle) {
+    assistantModeToggle.checked = aiEnabled;
+    assistantModeToggle.addEventListener('change', () => {
+        aiEnabled = assistantModeToggle.checked;
+        localStorage.setItem('assistantAiEnabled', aiEnabled ? 'true' : 'false');
+    });
+}
+
+const staffStatusCount = { pending: 0, in_progress: 0, completed: 0, delayed: 0 };
+const staffProjectStatusCount = { new: 0, ongoing: 0, completed: 0, terminated: 0 };
+const staffMunicipalityCount = {};
+
+TASKS.forEach(task => {
+    const status = (task.status || '').toLowerCase();
+    if (staffStatusCount[status] !== undefined) staffStatusCount[status] += 1;
+});
+
+STAFF_PROJECTS.forEach(project => {
+    const status = (project.status || 'new').toLowerCase();
+    if (staffProjectStatusCount[status] !== undefined) staffProjectStatusCount[status] += 1;
+    const municipality = (project.municipality || '').toLowerCase().trim();
+    if (municipality) staffMunicipalityCount[municipality] = (staffMunicipalityCount[municipality] || 0) + 1;
+});
+
+function setAssistantVisibility(isOpen) {
+    if (!assistantPanel || !assistantFab) return;
+    assistantPanel.classList.toggle('hidden', !isOpen);
+    assistantFab.classList.toggle('hidden', isOpen);
+    localStorage.setItem('assistantOpen', isOpen ? 'true' : 'false');
+}
+
+if (assistantFab && assistantHide) {
+    const openByDefault = localStorage.getItem('assistantOpen') !== 'false';
+    setAssistantVisibility(openByDefault);
+    assistantFab.addEventListener('click', () => setAssistantVisibility(true));
+    assistantHide.addEventListener('click', () => setAssistantVisibility(false));
+}
+
+function appendAssistantMessage(role, message, html = false) {
+    if (!assistantLog) return null;
+    const msg = document.createElement('div');
+    msg.className = `gis-msg ${role === 'user' ? 'gis-msg-user' : 'gis-msg-ai'}`;
+    msg[html ? 'innerHTML' : 'textContent'] = message;
+    assistantLog.appendChild(msg);
+    assistantLog.scrollTop = assistantLog.scrollHeight;
+    return msg;
+}
+
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+}
+
+function buildAiContext() {
+    return {
+        totals: {
+            tasks: TASKS.length,
+            projects: STAFF_PROJECTS.length
+        },
+        task_status_counts: staffStatusCount,
+        project_status_counts: staffProjectStatusCount,
+        project_municipalities: staffMunicipalityCount
+    };
+}
+
+async function requestAiAnswer(question) {
+    if (!assistantPanel || !assistantPanel.dataset.aiUrl) return null;
+    const csrfToken = getCookie('csrftoken');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    try {
+        const response = await fetch(assistantPanel.dataset.aiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ question, context: buildAiContext() }),
+            signal: controller.signal
+        });
+        const data = await response.json();
+        if (!data || !data.ok || !data.answer) {
+            return { answer: null, error: data && data.error ? data.error : 'AI unavailable' };
+        }
+        return { answer: data.answer, error: null };
+    } catch (e) {
+        return { answer: null, error: 'AI request failed' };
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
+function respondToLocalQuestion(questionRaw) {
+    const q = (questionRaw || '').toLowerCase();
+    if (/(^|\b)(hi|hello|hey|good morning|good afternoon|good evening)(\b|$)/i.test(q)) {
+        return 'Hi! Ask me about your task and project counts, statuses, or names.';
+    }
+    if (q.includes('help') || q.includes('keywords') || q.includes('commands')) {
+        return 'Try: ongoing projects, completed tasks, project names, or a municipality.';
+    }
+    if (q.includes('totals') || q.includes('summary') || q.includes('snapshot')) {
+        return `Snapshot: ${STAFF_PROJECTS.length} projects and ${TASKS.length} tasks.`;
+    }
+    if (q.includes('counts')) {
+        return `Snapshot: ${STAFF_PROJECTS.length} projects and ${TASKS.length} tasks.`;
+    }
+    if (q.includes('status') && !q.includes('task') && !q.includes('project')) {
+        return `Tasks: ${staffStatusCount.pending} pending, ${staffStatusCount.in_progress} in progress, ${staffStatusCount.completed} completed, ${staffStatusCount.delayed} delayed.`;
+    }
+    if (q.includes('what can this system do') || q.includes('system capabilities')) {
+        return 'This system tracks projects, tasks, proposals, and reports for your assignments.';
+    }
+    if (q.includes('task') && q.includes('pending')) return `You have ${staffStatusCount.pending} pending tasks.`;
+    if (q.includes('task') && q.includes('in progress')) return `You have ${staffStatusCount.in_progress} tasks in progress.`;
+    if (q.includes('task') && q.includes('completed')) return `You have ${staffStatusCount.completed} completed tasks.`;
+    if (q.includes('task') && q.includes('delayed')) return `You have ${staffStatusCount.delayed} delayed tasks.`;
+    if (q.includes('project') && q.includes('ongoing')) return `You have ${staffProjectStatusCount.ongoing} ongoing projects.`;
+    if (q.includes('project') && q.includes('completed')) return `You have ${staffProjectStatusCount.completed} completed projects.`;
+    if (q.includes('project') && q.includes('terminated')) return `You have ${staffProjectStatusCount.terminated} terminated projects.`;
+    if (q.includes('project names') || q.includes('project list')) {
+        const names = STAFF_PROJECTS.map(p => p.title).filter(Boolean).slice(0, 8);
+        return names.length ? `Projects: ${names.join(', ')}` : 'No projects found.';
+    }
+    return `Snapshot: ${STAFF_PROJECTS.length} projects and ${TASKS.length} tasks. Ask about a task or project status.`;
+}
+
+async function handleAssistantQuestion(questionText) {
+    const question = (questionText || '').trim();
+    if (!question) return;
+    appendAssistantMessage('user', question);
+    const pending = appendAssistantMessage('ai', 'Thinking...');
+    let aiError = null;
+    try {
+        if (aiEnabled) {
+            const aiResult = await requestAiAnswer(question);
+            if (aiResult && aiResult.answer) {
+                pending.textContent = aiResult.answer;
+                return;
+            }
+            aiError = aiResult && aiResult.error ? aiResult.error : null;
+        }
+    } catch (e) {
+        // Fallback to local response
+    }
+    try {
+        if (aiError) console.warn('AI assistant unavailable:', aiError);
+        const notice = formatAiNotice(aiError);
+        pending.textContent = notice ? `${respondToLocalQuestion(question)} (${notice})` : respondToLocalQuestion(question);
+    } catch (e) {
+        pending.textContent = 'I hit an error while answering locally. Try a different question.';
+    }
+}
+
+function formatAiNotice(errorText) {
+    if (!errorText) return '';
+    const lower = String(errorText).toLowerCase();
+    if (lower.includes('resource_exhausted') || lower.includes('quota') || lower.includes('429')) {
+        return 'Gemini quota exceeded. Please try again later or update your limits.';
+    }
+    if (lower.includes('api key') || lower.includes('api_key')) {
+        return 'AI key missing or invalid.';
+    }
+    return `AI unavailable: ${errorText}`;
+}
+
+if (assistantAsk && assistantInput) {
+    assistantAsk.addEventListener('click', () => {
+        handleAssistantQuestion(assistantInput.value);
+        assistantInput.value = '';
+        assistantInput.focus();
+    });
+    assistantInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            assistantAsk.click();
+        }
+    });
+}
+
+if (assistantPresets && assistantPresets.length) {
+    assistantPresets.forEach(btn => {
+        btn.addEventListener('click', () => handleAssistantQuestion(btn.getAttribute('data-question')));
+    });
+}
+
+// Arrow key navigation for map
+const PAN_DISTANCE = 100; // pixels to pan per key press
+
+document.addEventListener('keydown', function(e) {
+    // Only handle arrow keys when map is focused or when no input/textarea is focused
+    const activeElement = document.activeElement;
+    const isInputFocused = activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.contentEditable === 'true';
+    
+    if (!isInputFocused) {
+        switch(e.key) {
+            case 'ArrowUp':
+                e.preventDefault();
+                map.panBy([0, -PAN_DISTANCE]);
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                map.panBy([0, PAN_DISTANCE]);
+                break;
+            case 'ArrowLeft':
+                e.preventDefault();
+                map.panBy([-PAN_DISTANCE, 0]);
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                map.panBy([PAN_DISTANCE, 0]);
+                break;
+            case 'Enter':
+                e.preventDefault();
+                map.zoomIn();
+                break;
+            case ' ':
+                e.preventDefault();
+                map.zoomOut();
+                break;
+        }
+    }
+});
+
+// Focus map when clicked to enable keyboard navigation
+document.getElementById('taskMap').addEventListener('click', function() {
+    this.focus();
+});
+
+{% if my_tasks_count > 0 %}
+// Task Status Doughnut Chart
+const ctx = document.getElementById('taskStatusChart').getContext('2d');
+const chartLegendColor = document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#475569';
+new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Pending', 'In Progress', 'Completed', 'Delayed'],
+        datasets: [{
+            data: [{{ pending_tasks }}, {{ in_progress_tasks }}, {{ completed_tasks }}, {{ delayed_tasks }}],
+            backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#ef4444'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, color: chartLegendColor } }
+        }
+    }
+});
+{% endif %}
+</script>
+<!-- Module help for Staff Dashboard (copied into header help by base JS) -->
+<div id="module-help" style="display:none;">
+    <h3>Dashboard — quick guide</h3>
+    <p>This page shows your tasks and projects at a glance.</p>
+    <ul>
+        <li>📌 <strong>Assignments</strong> — tasks assigned to you and their status.</li>
+        <li>🗂️ <strong>Projects</strong> — quick list of projects you manage.</li>
+        <li>📊 <strong>Charts</strong> — simple visuals to show workload or completion.</li>
+    </ul>
+    <p>Tip: Use the charts to spot busy areas and prioritize work.</p>
+</div>
+
+{% block module_help %}{% endblock %}
+
+{% endblock %}

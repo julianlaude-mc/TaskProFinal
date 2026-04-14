@@ -1,0 +1,1436 @@
+{% extends "administrator/base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Reports{% endblock %}
+{% block nav-reports %}active-nav{% endblock %}
+{% block page-title %}Reports{% endblock %}
+
+{% block content %}
+<!-- Exclude reports from simple mode effects -->
+<script>document.body.classList.add('no-simple-mode');</script>
+<style>[x-cloak] { display: none !important; }</style>
+
+<div class="flex justify-between items-center mb-6">
+
+    <h2 class="text-2xl font-bold">Overview Reports</h2>
+    <div class="flex flex-wrap gap-2">
+        <!-- Excel Export Dropdown (Pure JS) -->
+        <div class="relative">
+            <button id="excelDropdownBtn" 
+                    class="px-4 py-2 bg-green-600 text-white font-semibold rounded hover:bg-green-700 transition flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export Excel
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+            <div id="excelDropdownMenu" 
+                 class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border z-50">
+                <a href="{% url 'export_master_report_excel' %}" 
+                   class="block px-4 py-2 text-white bg-green-600 hover:bg-green-700 font-semibold transition rounded-t-lg">
+                    📋 Master Report (All Data)
+                </a>
+                <hr class="border-gray-200">
+                <a href="{% url 'export_projects_excel' %}" 
+                   class="block px-4 py-2 text-gray-700 hover:bg-green-50 hover:text-green-700 transition">
+                    📊 Projects
+                </a>
+                <a href="{% url 'export_proposals_excel' %}" 
+                   class="block px-4 py-2 text-gray-700 hover:bg-green-50 hover:text-green-700 transition">
+                    📝 Proposals
+                </a>
+                <a href="{% url 'export_budgets_excel' %}" 
+                   class="block px-4 py-2 text-gray-700 hover:bg-green-50 hover:text-green-700 transition">
+                    💰 Budgets
+                </a>
+                <a href="{% url 'export_tasks_excel' %}" 
+                   class="block px-4 py-2 text-gray-700 hover:bg-green-50 hover:text-green-700 transition">
+                    ✅ Tasks
+                </a>
+            </div>
+        </div>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const btn = document.getElementById('excelDropdownBtn');
+                const menu = document.getElementById('excelDropdownMenu');
+                
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    menu.classList.toggle('hidden');
+                });
+                
+                document.addEventListener('click', function(e) {
+                    if (!btn.contains(e.target) && !menu.contains(e.target)) {
+                        menu.classList.add('hidden');
+                    }
+                });
+            });
+        </script>
+        
+        <!-- Print Button -->
+        <button onclick="window.print()" 
+                class="px-4 py-2 bg-gray-600 text-white font-semibold rounded hover:bg-gray-700 transition flex items-center gap-2 no-print">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Print
+        </button>
+        
+        <!-- PDF Export -->
+        <button type="button" id="openPdfPreviewBtn"
+           class="px-4 py-2 bg-red-600 text-white font-semibold rounded hover:bg-red-700 transition flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export PDF
+        </button>
+    </div>
+</div>
+
+
+
+
+
+<!-- PDF Export Preview Modal -->
+
+<!-- Ensure header help button uses this module's help when opened via header (copies hidden module-help into header help button) -->
+<script>
+function _copyModuleHelpToHeader() {
+    try {
+        var moduleHelp = document.getElementById('module-help');
+        var headerHelpBtn = document.getElementById('help-btn-admin');
+        if (moduleHelp && headerHelpBtn) {
+            // copy innerHTML so header help opens the same contextual content
+            headerHelpBtn.dataset.helpContent = moduleHelp.innerHTML.trim();
+        }
+    } catch (e) { console && console.error && console.error('help copy failed', e); }
+}
+document.addEventListener('DOMContentLoaded', _copyModuleHelpToHeader);
+if (document.readyState === 'interactive' || document.readyState === 'complete') _copyModuleHelpToHeader();
+</script>
+<div x-data="pdfExportManager()" x-init="init()" data-pdf-url="{% url 'export_full_report_pdf' %}">
+    <div x-show="showPdfPreview" x-transition
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto" x-cloak>
+        <div @click.away="showPdfPreview = false"
+             class="bg-white dark:bg-gray-800 w-full modal-content rounded-lg shadow-lg">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-gray-800 dark:text-white">Export PDF Report</h2>
+                <button @click="showPdfPreview = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <p class="text-gray-600 dark:text-gray-300 mb-4">Select which sections to include in your exported PDF report:</p>
+            
+            <!-- Quick Actions -->
+            <div class="flex gap-2 mb-4">
+                <button @click="selectAll()" class="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800">
+                    Select All
+                </button>
+                <button @click="deselectAll()" class="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600">
+                    Deselect All
+                </button>
+            </div>
+            
+            <!-- Section Checkboxes -->
+            <div class="pdf-options-grid mb-6">
+                <!-- Summary Statistics -->
+                <label class="flex items-start gap-3 p-4 border dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                       :class="{ 'border-blue-500 bg-blue-50 dark:bg-blue-900/30': sections.summary }">
+                    <input type="checkbox" x-model="sections.summary" class="mt-1 w-5 h-5 text-blue-600 rounded">
+                    <div>
+                        <div class="font-semibold text-gray-800 dark:text-white">Summary Statistics</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">Key project, proposal, and user metrics</div>
+                    </div>
+                </label>
+                
+                <!-- Equipment Allocations -->
+                <label class="flex items-start gap-3 p-4 border dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                       :class="{ 'border-purple-500 bg-purple-50 dark:bg-purple-900/30': sections.equipment }">
+                    <input type="checkbox" x-model="sections.equipment" class="mt-1 w-5 h-5 text-purple-600 rounded">
+                    <div>
+                        <div class="font-semibold text-gray-800 dark:text-white">Project & Proponent Insights</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">Top proponents, programs, types, and municipalities</div>
+                    </div>
+                </label>
+                
+                <!-- Projects List -->
+                <label class="flex items-start gap-3 p-4 border dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                       :class="{ 'border-green-500 bg-green-50 dark:bg-green-900/30': sections.projects }">
+                    <input type="checkbox" x-model="sections.projects" class="mt-1 w-5 h-5 text-green-600 rounded">
+                    <div>
+                        <div class="font-semibold text-gray-800 dark:text-white">Complete Projects List</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">All projects with status, funds, and dates</div>
+                    </div>
+                </label>
+                
+                <!-- Proposals List -->
+                <label class="flex items-start gap-3 p-4 border dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                       :class="{ 'border-teal-500 bg-teal-50 dark:bg-teal-900/30': sections.proposals }">
+                    <input type="checkbox" x-model="sections.proposals" class="mt-1 w-5 h-5 text-teal-600 rounded">
+                    <div>
+                        <div class="font-semibold text-gray-800 dark:text-white">Complete Proposals List</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">All proposals with amounts and submission dates</div>
+                    </div>
+                </label>
+                
+                <!-- Charts -->
+                <label class="flex items-start gap-3 p-4 border dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                       :class="{ 'border-orange-500 bg-orange-50 dark:bg-orange-900/30': sections.charts }">
+                    <input type="checkbox" x-model="sections.charts" class="mt-1 w-5 h-5 text-orange-600 rounded">
+                    <div>
+                        <div class="font-semibold text-gray-800 dark:text-white">Visual Charts</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">Budget, status, municipality, user role, tasks, and allocation charts</div>
+                    </div>
+                </label>
+                
+                <!-- Signatory -->
+                <label class="flex items-start gap-3 p-4 border dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                       :class="{ 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30': sections.signatory }">
+                    <input type="checkbox" x-model="sections.signatory" class="mt-1 w-5 h-5 text-indigo-600 rounded">
+                    <div>
+                        <div class="font-semibold text-gray-800 dark:text-white">Signatory Section</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">Prepared by signature line with date</div>
+                    </div>
+                </label>
+                
+                <!-- E-Signature -->
+                <label class="flex items-start gap-3 p-4 border dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                       :class="{ 'border-green-500 bg-green-50 dark:bg-green-900/30': sections.esignature }">
+                    <input type="checkbox" x-model="sections.esignature" class="mt-1 w-5 h-5 text-green-600 rounded">
+                    <div class="flex-grow">
+                        <div class="font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                            <span class="material-icons text-sm text-green-600">draw</span>
+                            Include E-Signature
+                        </div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">Add your digital signature image to the report</div>
+                        {% if user_signature %}
+                        <div class="mt-2 flex items-center gap-2">
+                            {% if user_signature.signature_image %}
+                            <img src="{{ user_signature.signature_image.url }}" alt="Your signature" class="h-8 border rounded">
+                            {% elif user_signature.signature_data %}
+                            <img src="{{ user_signature.signature_data }}" alt="Your signature" class="h-8 border rounded">
+                            {% endif %}
+                            <span class="text-xs text-green-600">✓ Signature ready</span>
+                        </div>
+                        {% else %}
+                        <div class="mt-2">
+                            <span class="text-xs text-amber-600 flex items-center gap-1">
+                                <span class="material-icons text-xs">warning</span>
+                                No signature set. <a href="{% url 'administrator_settings_url' %}" class="underline hover:text-amber-700">Set up in Settings</a>
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </label>
+            </div>
+            
+            <!-- Sorting Options -->
+            <div class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-6">
+                <h3 class="font-semibold text-blue-800 dark:text-blue-200 mb-3 flex items-center gap-2">
+                    <span class="material-icons text-sm">sort</span>
+                    Sort Results By
+                </h3>
+                <div class="pdf-sort-grid">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Projects Sort By</label>
+                        <select x-model="sortOptions.projects" class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white">
+                            <option value="title">Project Title (A-Z)</option>
+                            <option value="title_desc">Project Title (Z-A)</option>
+                            <option value="municipality">Municipality (A-Z)</option>
+                            <option value="municipality_desc">Municipality (Z-A)</option>
+                            <option value="status">Status</option>
+                            <option value="funds">Funds (Highest First)</option>
+                            <option value="funds_asc">Funds (Lowest First)</option>
+                            <option value="date">Date (Newest First)</option>
+                            <option value="date_asc">Date (Oldest First)</option>
+                            <option value="proponent">Proponent (A-Z)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Proposals Sort By</label>
+                        <select x-model="sortOptions.proposals" class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white">
+                            <option value="title">Title (A-Z)</option>
+                            <option value="title_desc">Title (Z-A)</option>
+                            <option value="municipality">Municipality (A-Z)</option>
+                            <option value="municipality_desc">Municipality (Z-A)</option>
+                            <option value="status">Status</option>
+                            <option value="amount">Amount (Highest First)</option>
+                            <option value="amount_asc">Amount (Lowest First)</option>
+                            <option value="date">Date (Newest First)</option>
+                            <option value="date_asc">Date (Oldest First)</option>
+                            <option value="proponent">Proponent (A-Z)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Page Layout Options -->
+            <div class="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4 mb-6">
+                <h3 class="font-semibold text-gray-700 dark:text-white mb-3 flex items-center gap-2">
+                    <span class="material-icons text-sm">description</span>
+                    Page Layout
+                </h3>
+                <div class="pdf-sort-grid">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Paper Size</label>
+                        <select x-model="pageLayout.size" class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white">
+                            <option value="letter">Letter (8.5 x 11)</option>
+                            <option value="a4">A4 (210 x 297 mm)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Orientation</label>
+                        <select x-model="pageLayout.orientation" class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white">
+                            <option value="landscape">Landscape</option>
+                            <option value="portrait">Portrait</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Preview Summary -->
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6">
+                <h3 class="font-semibold text-gray-700 dark:text-white mb-2">Export Preview</h3>
+                <div class="text-sm text-gray-600 dark:text-gray-300">
+                    <span x-text="Object.values(sections).filter(v => v).length"></span> section(s) selected for export
+                </div>
+                <ul class="text-sm text-gray-500 dark:text-gray-400 mt-2 space-y-1">
+                    <li x-show="sections.summary">✓ Summary Statistics</li>
+                    <li x-show="sections.equipment">✓ Project & Proponent Insights</li>
+                    <li x-show="sections.projects">✓ Projects List</li>
+                    <li x-show="sections.proposals">✓ Proposals List</li>
+                    <li x-show="sections.charts">✓ Visual Charts</li>
+                    <li x-show="sections.signatory">✓ Signatory Section</li>
+                </ul>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="button-group flex flex-col sm:flex-row justify-end gap-3">
+                <button @click="showPdfPreview = false" 
+                        class="w-full sm:w-auto px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition">
+                    Cancel
+                </button>
+                <button @click="exportPdf()" 
+                        class="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                        :disabled="Object.values(sections).every(v => !v)"
+                        :class="{ 'opacity-50 cursor-not-allowed': Object.values(sections).every(v => !v) }">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Generate PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alpine.js for collapsible filters -->
+<div x-data="{ showFilters: false }" class="mb-8">
+    <!-- Filter Toggle Button -->
+    <button @click="showFilters = !showFilters" 
+            class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 transition">
+        <svg x-show="!showFilters" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+        </svg>
+        <svg x-show="showFilters" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" x-cloak>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        <span x-text="showFilters ? 'Hide Filters' : 'Show Filters'"></span>
+    </button>
+
+    <!-- Filter Form -->
+    <div x-show="showFilters" x-transition class="bg-white p-4 rounded-lg shadow mt-4" x-cloak>
+        <h3 class="text-lg font-semibold mb-4">Filter Reports</h3>
+    <form method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <!-- Year Filter -->
+        <div>
+            <label for="year" class="block text-sm font-medium text-gray-700 mb-1">Year</label>
+            <select name="year" id="year" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">All Years</option>
+                {% for year in available_years %}
+                <option value="{{ year }}" {% if selected_year == year|stringformat:"s" %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Municipality Filter -->
+        <div>
+            <label for="municipality" class="block text-sm font-medium text-gray-700 mb-1">Municipality</label>
+            <select name="municipality" id="municipality" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">All Municipalities</option>
+                {% for mun in available_municipalities %}
+                <option value="{{ mun }}" {% if selected_municipality == mun %}selected{% endif %}>{{ mun }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Start Date Filter -->
+        <div>
+            <label for="start_date" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+            <input type="date" name="start_date" id="start_date" value="{{ start_date }}" 
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <!-- End Date Filter -->
+        <div>
+            <label for="end_date" class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+            <input type="date" name="end_date" id="end_date" value="{{ end_date }}" 
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <!-- Status Filter -->
+        <div>
+            <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select name="status" id="status" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">All Statuses</option>
+                {% for status in available_statuses %}
+                <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>{{ status }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Filter Actions -->
+        <div class="md:col-span-2 lg:col-span-5 flex gap-2">
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 transition">
+                Apply Filters
+            </button>
+            <a href="{% url 'administrator_reports_url' %}" class="px-4 py-2 bg-gray-500 text-white font-semibold rounded hover:bg-gray-600 transition">
+                Clear Filters
+            </a>
+        </div>
+    </form>
+    </div>
+</div>
+<!-- End of Filter Section -->
+
+<!-- Project & Proponent Summary Cards -->
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+    <div class="bg-white border border-gray-200 p-4 rounded-lg shadow">
+        <div class="text-2xl font-bold text-gray-800">{{ total_projects }}</div>
+        <div class="text-sm text-gray-600">Total Projects</div>
+    </div>
+    <div class="bg-white border border-gray-200 p-4 rounded-lg shadow">
+        <div class="text-2xl font-bold text-gray-800">{{ projects_ongoing }}</div>
+        <div class="text-sm text-gray-600">Ongoing Projects</div>
+    </div>
+    <div class="bg-white border border-gray-200 p-4 rounded-lg shadow">
+        <div class="text-2xl font-bold text-gray-800">{{ projects_completed }}</div>
+        <div class="text-sm text-gray-600">Completed Projects</div>
+    </div>
+    <div class="bg-white border border-gray-200 p-4 rounded-lg shadow">
+        <div class="text-2xl font-bold text-gray-800">{{ total_proposals }}</div>
+        <div class="text-sm text-gray-600">Total Proposals</div>
+    </div>
+    <div class="bg-white border border-gray-200 p-4 rounded-lg shadow">
+        <div class="text-lg font-bold text-gray-800">{{ top_municipality_name }}</div>
+        <div class="text-xs text-gray-600">Top Area ({{ top_municipality_count }} projects)</div>
+    </div>
+</div>
+
+<!-- Row 1: 3 Doughnut Charts - Equal sizing (Visible in Simple Mode - easy to understand) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 chart-section">
+    <!-- Proposal Status -->
+    <div class="p-4 bg-white shadow rounded-lg">
+        <h3 class="text-sm font-semibold mb-2 text-gray-700 text-center">Proposal Status</h3>
+        <div class="flex justify-center items-center" style="height: 180px;">
+            <canvas id="proposalPieChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Project Status Distribution -->
+    <div class="p-4 bg-white shadow rounded-lg">
+        <h3 class="text-sm font-semibold mb-2 text-gray-700 text-center">Project Status</h3>
+        <div class="flex justify-center items-center" style="height: 180px;">
+            <canvas id="projectStatusChart"></canvas>
+        </div>
+    </div>
+
+    <!-- User Role Distribution -->
+    <div class="p-4 bg-white shadow rounded-lg">
+        <h3 class="text-sm font-semibold mb-2 text-gray-700 text-center">User Roles</h3>
+        <div class="flex justify-center items-center" style="height: 180px;">
+            <canvas id="userRoleChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Row 2: Projects by Municipality + Monthly Projects -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 chart-section">
+    <div class="p-4 bg-white shadow rounded-lg">
+        <h3 class="text-sm font-semibold mb-2 text-gray-700">Projects by Municipality</h3>
+        <div style="height: 250px;">
+            <canvas id="municipalityChart"></canvas>
+        </div>
+    </div>
+
+    <div class="p-4 bg-white shadow rounded-lg">
+        <h3 class="text-sm font-semibold mb-2 text-gray-700">Monthly Project Distribution{% if report_year != 'All Years' %} – {{ report_year }}{% endif %}</h3>
+        <div style="height: 250px;">
+            <canvas id="monthlyProjectsChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Row 3: Proposals by Municipality + Top Proponents -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 chart-section">
+    <div class="p-4 bg-white shadow rounded-lg">
+        <h3 class="text-sm font-semibold mb-2 text-gray-700">Proposals by Municipality</h3>
+        <div style="height: 250px;">
+            <canvas id="proposalsMunicipalityChart"></canvas>
+        </div>
+    </div>
+    <div class="p-4 bg-white shadow rounded-lg">
+        <h3 class="text-sm font-semibold mb-2 text-gray-700">Top Proponents by Proposals</h3>
+        <div style="height: 250px;">
+            <canvas id="topProponentsChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Row 4: Projects by Program + Type -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 chart-section">
+    <div class="p-4 bg-white shadow rounded-lg">
+        <h3 class="text-sm font-semibold mb-2 text-gray-700">Projects by Program</h3>
+        <div style="height: 250px;">
+            <canvas id="projectsByProgramChart"></canvas>
+        </div>
+    </div>
+    <div class="p-4 bg-white shadow rounded-lg">
+        <h3 class="text-sm font-semibold mb-2 text-gray-700">Projects by Type</h3>
+        <div style="height: 250px;">
+            <canvas id="projectsByTypeChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+<script>
+    // Wait for DOM and Chart.js to be ready
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM ready, Chart.js available:', typeof Chart !== 'undefined');
+        
+        // -----------------------------
+        // Proposal Status Pie Chart
+        // -----------------------------
+        try {
+            const ctxProposal = document.getElementById('proposalPieChart');
+        if (ctxProposal) {
+            const ctx = ctxProposal.getContext('2d');
+            
+            // Get data from Django template with fallback
+            let proposalCounts = {"pending": 0, "approved": 0, "rejected": 0};
+            try {
+                const djangoData = {{ proposal_status_counts|safe }};
+                if (djangoData && typeof djangoData === 'object') {
+                    proposalCounts = djangoData;
+                }
+            } catch (e) {
+                console.warn('Using fallback data for proposal chart');
+            }
+            
+            if (typeof Chart !== 'undefined') {
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Pending', 'Approved', 'Declined'],
+                        datasets: [{
+                            label: 'Proposal Status',
+                            data: [
+                                proposalCounts.pending || 0,
+                                proposalCounts.approved || 0,
+                                proposalCounts.rejected || 0
+                            ],
+                            backgroundColor: [
+                                'rgba(255, 206, 86, 0.7)',
+                                'rgba(75, 192, 192, 0.7)',
+                                'rgba(255, 99, 132, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(255, 99, 132, 1)'
+                            ],
+                            borderWidth: 2,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '45%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { font: { size: 9 }, color: '#333', boxWidth: 12 } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.label}: ${context.raw}`;
+                                    }
+                                }
+                            },
+                            title: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error creating proposal status chart:', error);
+    }
+
+    // -----------------------------
+    // Project Status Distribution Chart
+    // -----------------------------
+    try {
+        const ctxProjectStatus = document.getElementById('projectStatusChart');
+        if (ctxProjectStatus) {
+            const ctx = ctxProjectStatus.getContext('2d');
+            
+            // Get data from Django template with fallback
+            let projectStatusCounts = {"New": 0, "Ongoing": 0, "Completed": 0, "Terminated": 0};
+            try {
+                const djangoData = {{ project_status_counts|safe }};
+                if (djangoData && typeof djangoData === 'object') {
+                    projectStatusCounts = djangoData;
+                }
+            } catch (e) {
+                console.warn('Using fallback data for project status chart');
+            }
+            
+            // Get labels and values dynamically from the object
+            const projectLabels = Object.keys(projectStatusCounts);
+            const projectValues = Object.values(projectStatusCounts);
+
+            if (typeof Chart !== 'undefined') {
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: projectLabels,
+                        datasets: [{
+                            label: 'Project Status',
+                            data: projectValues,
+                            backgroundColor: [
+                                'rgba(156, 163, 175, 0.7)',
+                                'rgba(59, 130, 246, 0.7)',
+                                'rgba(34, 197, 94, 0.7)',
+                                'rgba(239, 68, 68, 0.7)',
+                                'rgba(139, 92, 246, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(156, 163, 175, 1)',
+                                'rgba(59, 130, 246, 1)',
+                                'rgba(34, 197, 94, 1)',
+                                'rgba(239, 68, 68, 1)',
+                                'rgba(139, 92, 246, 1)'
+                            ],
+                            borderWidth: 2,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '45%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { font: { size: 9 }, color: '#333', boxWidth: 12 } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.label}: ${context.raw} project(s)`;
+                                    }
+                                }
+                            },
+                            title: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error creating project status chart:', error);
+    }
+
+    // -----------------------------
+    // User Role Distribution Chart
+    // -----------------------------
+    try {
+        const ctxUserRole = document.getElementById('userRoleChart');
+        if (ctxUserRole) {
+            const ctx = ctxUserRole.getContext('2d');
+            
+            // Get data from Django template with fallback
+            let userRoleCounts = {"Administrator": 0, "Staff": 0, "Proponent": 0, "Beneficiary": 0};
+            try {
+                const djangoData = {{ user_role_counts|safe }};
+                if (djangoData && typeof djangoData === 'object') {
+                    userRoleCounts = djangoData;
+                }
+            } catch (e) {
+                console.warn('Using fallback data for user role chart');
+            }
+            
+            // Get labels and values dynamically from the object
+            const roleLabels = Object.keys(userRoleCounts);
+            const roleValues = Object.values(userRoleCounts);
+
+            if (typeof Chart !== 'undefined') {
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: roleLabels,
+                        datasets: [{
+                            label: 'User Roles',
+                            data: roleValues,
+                            backgroundColor: [
+                                'rgba(139, 92, 246, 0.7)',
+                                'rgba(236, 72, 153, 0.7)',
+                                'rgba(14, 165, 233, 0.7)',
+                                'rgba(245, 158, 11, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(139, 92, 246, 1)',
+                                'rgba(236, 72, 153, 1)',
+                                'rgba(14, 165, 233, 1)',
+                                'rgba(245, 158, 11, 1)'
+                            ],
+                            borderWidth: 2,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '45%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { font: { size: 9 }, color: '#333', boxWidth: 12 } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.label}: ${context.raw} user(s)`;
+                                    }
+                                }
+                            },
+                            title: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error creating user role chart:', error);
+    }
+
+    // -----------------------------
+    // Project Timeline Status Chart
+    // -----------------------------
+    try {
+        const ctxTimeline = document.getElementById('projectTimelineChart');
+        if (ctxTimeline) {
+            const ctx = ctxTimeline.getContext('2d');
+
+            // Get data from Django template with fallback
+            let projectStatusCounts = {"New": 0, "Ongoing": 0, "Completed": 0, "Terminated": 0};
+            try {
+                const djangoData = {{ project_status_counts|safe }};
+                if (djangoData && typeof djangoData === 'object') {
+                    projectStatusCounts = djangoData;
+                }
+            } catch (e) {
+                console.warn('Using fallback data for project timeline chart');
+            }
+
+            // Use project status data to show timeline distribution
+            const timelineLabels = ['Planning', 'Ongoing', 'Completed'];
+            const timelineData = [
+                (projectStatusCounts.New || 0) + (projectStatusCounts.Pending || 0), // Planning phase
+                projectStatusCounts.Ongoing || 0, // Current projects
+                projectStatusCounts.Completed || 0 // Completed projects
+            ];
+
+            if (typeof Chart !== 'undefined') {
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: timelineLabels,
+                        datasets: [{
+                            label: 'Project Timeline',
+                            data: timelineData,
+                            backgroundColor: [
+                                'rgba(245, 158, 11, 0.7)',  // Orange for planning
+                                'rgba(59, 130, 246, 0.7)',   // Blue for ongoing
+                                'rgba(34, 197, 94, 0.7)'     // Green for completed
+                            ],
+                            borderColor: [
+                                'rgba(245, 158, 11, 1)',
+                                'rgba(59, 130, 246, 1)',
+                                'rgba(34, 197, 94, 1)'
+                            ],
+                            borderWidth: 2,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '45%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { font: { size: 9 }, color: '#333', boxWidth: 12 } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.label}: ${context.raw} project(s)`;
+                                    }
+                                }
+                            },
+                            title: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error creating project timeline chart:', error);
+    }
+
+    // -----------------------------
+    // Projects by Municipality Chart
+    // -----------------------------
+    try {
+        const ctxMunicipality = document.getElementById('municipalityChart');
+        if (ctxMunicipality) {
+            const ctx = ctxMunicipality.getContext('2d');
+            
+            // Get data from Django template with fallback
+            let municipalityCounts = {};
+            try {
+                const djangoData = {{ municipality_counts|safe }};
+                if (djangoData && typeof djangoData === 'object') {
+                    municipalityCounts = djangoData;
+                }
+            } catch (e) {
+                console.warn('Using fallback data for municipality chart');
+                municipalityCounts = {"Sample Municipality": 0};
+            }
+            
+            const municipalityLabels = Object.keys(municipalityCounts);
+            const municipalityData = Object.values(municipalityCounts);
+
+            if (typeof Chart !== 'undefined') {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: municipalityLabels,
+                        datasets: [{
+                            label: 'Number of Projects',
+                            data: municipalityData,
+                            backgroundColor: [
+                                'rgba(59, 130, 246, 0.7)',
+                                'rgba(34, 197, 94, 0.7)',
+                                'rgba(245, 158, 11, 0.7)',
+                                'rgba(239, 68, 68, 0.7)',
+                                'rgba(139, 92, 246, 0.7)',
+                                'rgba(236, 72, 153, 0.7)',
+                                'rgba(14, 165, 233, 0.7)',
+                                'rgba(156, 163, 175, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(59, 130, 246, 1)',
+                                'rgba(34, 197, 94, 1)',
+                                'rgba(245, 158, 11, 1)',
+                                'rgba(239, 68, 68, 1)',
+                                'rgba(139, 92, 246, 1)',
+                                'rgba(236, 72, 153, 1)',
+                                'rgba(14, 165, 233, 1)',
+                                'rgba(156, 163, 175, 1)'
+                            ],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { title: { display: false } },
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Projects', font: { size: 11 } },
+                                ticks: { precision: 0 }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.raw} project(s)`;
+                                    }
+                                }
+                            },
+                            title: { display: false }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error creating municipality chart:', error);
+    }
+
+    // -----------------------------
+    // Monthly Projects Chart
+    // -----------------------------
+    try {
+        const ctxMonthly = document.getElementById('monthlyProjectsChart');
+        if (ctxMonthly) {
+            const ctx = ctxMonthly.getContext('2d');
+            
+            // Get data from Django template with fallback
+            let monthlyProjects = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            try {
+                const djangoData = {{ monthly_projects|safe }};
+                if (Array.isArray(djangoData)) {
+                    monthlyProjects = djangoData;
+                }
+            } catch (e) {
+                console.warn('Using fallback data for monthly projects chart');
+            }
+            
+            const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+            if (typeof Chart !== 'undefined') {
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: monthLabels,
+                        datasets: [{
+                            label: 'Projects Started',
+                            data: monthlyProjects,
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: 'rgba(59, 130, 246, 1)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { title: { display: false } },
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Projects', font: { size: 11 } },
+                                ticks: { precision: 0 }
+                            }
+                        },
+                        plugins: {
+                            legend: { position: 'bottom', labels: { font: { size: 11 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.raw} project(s) started`;
+                                    }
+                                }
+                            },
+                            title: { display: false }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error creating monthly projects chart:', error);
+    }
+
+    // -----------------------------
+    // Task Status Chart
+    // -----------------------------
+    try {
+        const ctxTasks = document.getElementById('taskStatusChart');
+        if (ctxTasks) {
+            const ctx = ctxTasks.getContext('2d');
+
+            let taskCounts = {pending: 0, in_progress: 0, completed: 0, delayed: 0};
+            try {
+                const djangoData = {{ task_status_counts|safe }};
+                if (djangoData && typeof djangoData === 'object') {
+                    taskCounts = djangoData;
+                }
+            } catch (e) {
+                console.warn('Using fallback data for task status chart');
+            }
+
+            if (typeof Chart !== 'undefined') {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Pending', 'In Progress', 'Completed', 'Delayed'],
+                        datasets: [{
+                            label: 'Tasks',
+                            data: [
+                                taskCounts.pending || 0,
+                                taskCounts.in_progress || 0,
+                                taskCounts.completed || 0,
+                                taskCounts.delayed || 0
+                            ],
+                            backgroundColor: [
+                                'rgba(255, 206, 86, 0.7)',
+                                'rgba(59, 130, 246, 0.7)',
+                                'rgba(34, 197, 94, 0.7)',
+                                'rgba(239, 68, 68, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(59, 130, 246, 1)',
+                                'rgba(34, 197, 94, 1)',
+                                'rgba(239, 68, 68, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true, ticks: { precision: 0 } }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.raw} task(s)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error creating task status chart:', error);
+    }
+
+    // -----------------------------
+    // Allocation Status Chart
+    // -----------------------------
+    try {
+        const ctxAllocation = document.getElementById('allocationStatusChart');
+        if (ctxAllocation) {
+            const ctx = ctxAllocation.getContext('2d');
+
+            let allocationCounts = {pending: 0, delivered: 0};
+            try {
+                const djangoData = {{ allocation_status_counts|safe }};
+                if (djangoData && typeof djangoData === 'object') {
+                    allocationCounts = djangoData;
+                }
+            } catch (e) {
+                console.warn('Using fallback data for allocation status chart');
+            }
+
+            if (typeof Chart !== 'undefined') {
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Pending', 'Delivered'],
+                        datasets: [{
+                            data: [
+                                allocationCounts.pending || 0,
+                                allocationCounts.delivered || 0
+                            ],
+                            backgroundColor: [
+                                'rgba(255, 159, 64, 0.7)',
+                                'rgba(75, 192, 192, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(255, 159, 64, 1)',
+                                'rgba(75, 192, 192, 1)'
+                            ],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '45%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error creating allocation status chart:', error);
+    }
+
+    // -----------------------------
+    // Proposals by Municipality Chart
+    // -----------------------------
+    try {
+        const ctxPropMunicipality = document.getElementById('proposalsMunicipalityChart');
+        if (ctxPropMunicipality) {
+            const ctx = ctxPropMunicipality.getContext('2d');
+
+            let proposalMunicipalityCounts = {};
+            try {
+                const djangoData = {{ proposal_municipality_counts|safe }};
+                if (djangoData && typeof djangoData === 'object') {
+                    proposalMunicipalityCounts = djangoData;
+                }
+            } catch (e) {
+                console.warn('Using fallback data for proposals by municipality chart');
+            }
+
+            const labels = Object.keys(proposalMunicipalityCounts);
+            const values = Object.values(proposalMunicipalityCounts);
+
+            if (typeof Chart !== 'undefined') {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Proposals',
+                            data: values,
+                            backgroundColor: 'rgba(14, 165, 233, 0.7)',
+                            borderColor: 'rgba(14, 165, 233, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true, ticks: { precision: 0 } }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error creating proposals by municipality chart:', error);
+    }
+
+    // -----------------------------
+    // Top Projects by Beneficiaries Chart
+    // -----------------------------
+    try {
+        const ctxBeneficiaries = document.getElementById('topBeneficiariesChart');
+        if (ctxBeneficiaries) {
+            const ctx = ctxBeneficiaries.getContext('2d');
+
+            let labels = [];
+            let values = [];
+            try {
+                const labelsData = {{ scatter_labels|safe }};
+                const valuesData = {{ scatter_data|safe }};
+                if (Array.isArray(labelsData) && Array.isArray(valuesData)) {
+                    labels = labelsData;
+                    values = valuesData;
+                }
+            } catch (e) {
+                console.warn('Using fallback data for top beneficiaries chart');
+            }
+
+            if (typeof Chart !== 'undefined') {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Beneficiaries',
+                            data: values,
+                            backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                            borderColor: 'rgba(34, 197, 94, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { beginAtZero: true, ticks: { precision: 0 } },
+                            y: { title: { display: false } }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.raw} beneficiary(ies)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error creating top beneficiaries chart:', error);
+    }
+
+    // -----------------------------
+    // Top Proponents Chart
+    // -----------------------------
+    try {
+        const ctxTopProp = document.getElementById('topProponentsChart');
+        if (ctxTopProp) {
+            const ctx = ctxTopProp.getContext('2d');
+
+            let propLabels = [];
+            let propValues = [];
+            try {
+                const labelsData = {{ top_proponent_labels|safe }};
+                const valuesData = {{ top_proponent_values|safe }};
+                if (Array.isArray(labelsData) && Array.isArray(valuesData)) {
+                    propLabels = labelsData;
+                    propValues = valuesData;
+                }
+            } catch (e) {
+                console.warn('Using fallback data for top proponents chart');
+            }
+
+            if (typeof Chart !== 'undefined') {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: propLabels,
+                        datasets: [{
+                            label: 'Proposals',
+                            data: propValues,
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { beginAtZero: true, ticks: { precision: 0 } }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error creating top proponents chart:', error);
+    }
+
+    // -----------------------------
+    // Projects by Program Chart
+    // -----------------------------
+    try {
+        const ctxProgram = document.getElementById('projectsByProgramChart');
+        if (ctxProgram) {
+            const ctx = ctxProgram.getContext('2d');
+
+            let programCounts = {};
+            try {
+                const djangoData = {{ project_program_counts|safe }};
+                if (djangoData && typeof djangoData === 'object') {
+                    programCounts = djangoData;
+                }
+            } catch (e) {
+                console.warn('Using fallback data for projects by program chart');
+            }
+
+            const labels = Object.keys(programCounts);
+            const values = Object.values(programCounts);
+
+            if (typeof Chart !== 'undefined') {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Projects',
+                            data: values,
+                            backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                            borderColor: 'rgba(34, 197, 94, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true, ticks: { precision: 0 } }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error creating projects by program chart:', error);
+    }
+
+    // -----------------------------
+    // Projects by Type Chart
+    // -----------------------------
+    try {
+        const ctxType = document.getElementById('projectsByTypeChart');
+        if (ctxType) {
+            const ctx = ctxType.getContext('2d');
+
+            let typeCounts = {};
+            try {
+                const djangoData = {{ project_type_counts|safe }};
+                if (djangoData && typeof djangoData === 'object') {
+                    typeCounts = djangoData;
+                }
+            } catch (e) {
+                console.warn('Using fallback data for projects by type chart');
+            }
+
+            const labels = Object.keys(typeCounts);
+            const values = Object.values(typeCounts);
+
+            if (typeof Chart !== 'undefined') {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Projects',
+                            data: values,
+                            backgroundColor: 'rgba(245, 158, 11, 0.7)',
+                            borderColor: 'rgba(245, 158, 11, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true, ticks: { precision: 0 } }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error creating projects by type chart:', error);
+    }
+
+    }); // End of DOMContentLoaded
+</script>
+
+<!-- PDF Export Manager Function -->
+<script>
+function pdfExportManager() {
+    return {
+        showPdfPreview: false,
+        pdfUrl: '',
+        sections: {
+            summary: true,
+            equipment: true,
+            projects: true,
+            proposals: true,
+            charts: true,
+            signatory: true,
+            esignature: false
+        },
+        sortOptions: {
+            projects: 'municipality',
+            proposals: 'municipality'
+        },
+        pageLayout: {
+            size: 'letter',
+            orientation: 'landscape'
+        },
+        init() {
+            // Get URL from data attribute
+            this.pdfUrl = this.$el.dataset.pdfUrl;
+            
+            // Listen for button click
+            const btn = document.getElementById('openPdfPreviewBtn');
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    this.showPdfPreview = true;
+                });
+            }
+        },
+        selectAll() {
+            Object.keys(this.sections).forEach(key => this.sections[key] = true);
+        },
+        deselectAll() {
+            Object.keys(this.sections).forEach(key => this.sections[key] = false);
+        },
+        exportPdf() {
+            // Get current filter values
+            const year = document.getElementById('year')?.value || '';
+            const startDate = document.getElementById('start_date')?.value || '';
+            const endDate = document.getElementById('end_date')?.value || '';
+            const status = document.getElementById('status')?.value || '';
+            const municipality = document.getElementById('municipality')?.value || '';
+            
+            // Build URL with parameters
+            let url = this.pdfUrl + '?';
+            const params = [];
+            
+            if (year) params.push('year=' + encodeURIComponent(year));
+            if (startDate) params.push('start_date=' + encodeURIComponent(startDate));
+            if (endDate) params.push('end_date=' + encodeURIComponent(endDate));
+            if (status) params.push('status=' + encodeURIComponent(status));
+            if (municipality) params.push('municipality=' + encodeURIComponent(municipality));
+            
+            // Add section parameters
+            Object.keys(this.sections).forEach(key => {
+                params.push('include_' + key + '=' + (this.sections[key] ? '1' : '0'));
+            });
+            
+            // Add sort parameters
+            params.push('sort_projects=' + encodeURIComponent(this.sortOptions.projects));
+            params.push('sort_proposals=' + encodeURIComponent(this.sortOptions.proposals));
+
+            // Add layout parameters
+            params.push('page_size=' + encodeURIComponent(this.pageLayout.size));
+            params.push('page_orientation=' + encodeURIComponent(this.pageLayout.orientation));
+            
+            url += params.join('&');
+            
+            // Open in new tab
+            window.open(url, '_blank');
+            this.showPdfPreview = false;
+        }
+    };
+}
+</script>
+{% endblock %}

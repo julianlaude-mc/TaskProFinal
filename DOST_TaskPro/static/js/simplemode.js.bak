@@ -1,0 +1,148 @@
+(function() {
+  'use strict';
+  
+  var ready = false;
+
+  function isSimpleModeActive() {
+    try {
+      return document.documentElement.classList.contains('simple-mode') ||
+             (document.body && document.body.classList.contains('simple-mode'));
+    } catch(e) {
+      return false;
+    }
+  }
+
+  function showAllTables() {
+    var tables = document.querySelectorAll('.table-section');
+    for (var i = 0; i < tables.length; i++) {
+      tables[i].style.display = '';
+      tables[i].removeAttribute('data-sm-state');
+    }
+    var placeholders = document.querySelectorAll('.sm-table-placeholder');
+    for (var j = 0; j < placeholders.length; j++) {
+      placeholders[j].remove();
+    }
+  }
+
+  function hideTable(el) {
+    if (!el || el.getAttribute('data-sm-state')) return;
+    el.setAttribute('data-sm-state', 'hidden');
+    el.style.display = 'none';
+    
+    var p = document.createElement('div');
+    p.className = 'sm-table-placeholder';
+    p.style.cssText = 'display:flex;flex-direction:column;align-items:center;padding:24px;margin:16px 0;background:#f0f9ff;border-radius:12px;border:2px dashed #0ea5e9;';
+    
+    var icon = document.createElement('span');
+    icon.className = 'material-icons';
+    icon.textContent = 'table_chart';
+    icon.style.cssText = 'font-size:48px;color:#0284c7;margin-bottom:12px;';
+    
+    var txt = document.createElement('p');
+    txt.textContent = 'Table hidden in Simple Mode';
+    txt.style.cssText = 'color:#0369a1;margin-bottom:16px;';
+    
+    var btn = document.createElement('button');
+    btn.innerHTML = '<span class="material-icons" style="margin-right:8px;">visibility</span>Show Table';
+    btn.style.cssText = 'padding:12px 24px;background:#3b82f6;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;display:flex;align-items:center;';
+    btn.onclick = function() {
+      p.style.display = 'none';
+      el.style.display = 'block';
+      el.setAttribute('data-sm-state', 'revealed');
+    };
+    
+    p.appendChild(icon);
+    p.appendChild(txt);
+    p.appendChild(btn);
+    el.parentNode.insertBefore(p, el);
+  }
+
+  function hideAllTables() {
+    if (!isSimpleModeActive()) return;
+    var tables = document.querySelectorAll('.table-section');
+    for (var i = 0; i < tables.length; i++) {
+      if (tables[i].getAttribute('data-sm-state') !== 'revealed') {
+        hideTable(tables[i]);
+      }
+    }
+  }
+
+  function syncState() {
+    if (isSimpleModeActive()) {
+      hideAllTables();
+    } else {
+      showAllTables();
+    }
+  }
+
+  function createFAB() {
+    if (document.getElementById('quickHelpFAB')) return;
+    var fab = document.createElement('button');
+    fab.id = 'quickHelpFAB';
+    fab.innerHTML = '<span class="material-icons">help</span>';
+    fab.style.cssText = 'position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:#3b82f6;color:white;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;z-index:9990;';
+    fab.onclick = function() {
+      var m = document.getElementById('quickHelpModal');
+      if (m) {
+        m.style.cssText = 'display:flex !important;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;pointer-events:auto;visibility:visible;';
+      }
+    };
+    document.body.appendChild(fab);
+  }
+
+  function createModal() {
+    if (document.getElementById('quickHelpModal')) return;
+    var modal = document.createElement('div');
+    modal.id = 'quickHelpModal';
+    modal.className = 'quick-help-modal-overlay';
+    modal.style.cssText = 'display:none !important;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;pointer-events:none;visibility:hidden;';
+    modal.innerHTML = '<div style="background:white;border-radius:16px;max-width:400px;width:90%;max-height:80vh;overflow:auto;pointer-events:auto;"><div style="background:#3b82f6;color:white;padding:20px;display:flex;justify-content:space-between;align-items:center;border-radius:16px 16px 0 0;"><h3 style="margin:0;font-size:18px;">Quick Help</h3><button style="background:none;border:none;color:white;cursor:pointer;font-size:24px;line-height:1;" onclick="document.getElementById(\'quickHelpModal\').style.cssText=\'display:none !important;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;pointer-events:none;visibility:hidden;\'">&times;</button></div><div style="padding:20px;"><p style="margin:0 0 12px;"><strong>Dashboard:</strong> View statistics and charts</p><p style="margin:0 0 12px;"><strong>Projects:</strong> Manage all projects</p><p style="margin:0 0 12px;"><strong>Reports:</strong> Generate PDF reports</p><p style="margin:0 0 12px;"><strong>Calendar:</strong> View events and deadlines</p><p style="margin:0;"><strong>Simple Mode:</strong> Toggle for cleaner view</p></div></div>';
+    modal.onclick = function(e) { if (e.target === modal) { modal.style.cssText = 'display:none !important;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;pointer-events:none;visibility:hidden;'; } };
+    document.body.appendChild(modal);
+  }
+
+  function init() {
+    if (ready) return;
+    ready = true;
+    
+    try {
+      showAllTables();
+      
+      if (isSimpleModeActive()) {
+        setTimeout(hideAllTables, 300);
+      }
+      
+      var debounce;
+      var obs = new MutationObserver(function() {
+        clearTimeout(debounce);
+        debounce = setTimeout(syncState, 150);
+      });
+      obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+      
+      createFAB();
+      createModal();
+    } catch(e) {
+      console.error('SimpleModeHelper init error:', e);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    setTimeout(init, 10);
+  }
+
+  window.SimpleModeHelper = {
+    isActive: isSimpleModeActive,
+    showAllTables: showAllTables,
+    hideAllTables: hideAllTables,
+    openHelp: function() { 
+      var m = document.getElementById('quickHelpModal'); 
+      if(m) m.style.cssText = 'display:flex !important;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;pointer-events:auto;visibility:visible;'; 
+    },
+    closeHelp: function() { 
+      var m = document.getElementById('quickHelpModal'); 
+      if(m) m.style.cssText = 'display:none !important;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;pointer-events:none;visibility:hidden;'; 
+    }
+  };
+})();

@@ -1,0 +1,1174 @@
+/* 
+   DOST TaskPro - Responsive Design Framework
+   Author: System Optimization
+   Purpose: Optimize all dashboards and modules for responsive, aesthetic display
+   Created: March 26, 2026
+*/
+
+/* ==================== DEVICE-SPECIFIC BREAKPOINTS ==================== */
+/* Mobile: 320px-640px */
+/* Tablet: 641px-1024px */
+/* Desktop: 1025px+ */
+/* Ultra-Wide: 1500px+ */
+
+:root {
+    --mobile-width: 320px;
+    --tablet-width: 641px;
+    --desktop-width: 1025px;
+    --ultra-wide: 1500px;
+}
+
+/* ==================== RESPONSIVE GRID SYSTEM ==================== */
+
+/* Z-Format Dashboard Layout (Zigzag pattern for aesthetic flow) */
+.dashboard-container {
+    width: 100%;
+    max-width: 100%;
+    padding: 1rem;
+    overflow-x: hidden;
+}
+
+/* Hero Section - Full Width */
+.dashboard-hero {
+    width: 100%;
+    margin-bottom: 1.5rem;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+}
+
+@media (max-width: 640px) {
+    .dashboard-hero {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+}
+
+/* Summary Cards - Smart Grid */
+.summary-cards {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Mobile: 2 columns */
+@media (max-width: 640px) {
+    .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    
+    .summary-card {
+        padding: 0.75rem;
+    }
+    
+    .summary-card h3 {
+        font-size: 0.625rem;
+        line-height: 1;
+    }
+    
+    .summary-card p {
+        font-size: 1.5rem;
+        margin-top: 0.5rem;
+    }
+}
+
+/* Tablet: 3 columns */
+@media (min-width: 641px) and (max-width: 1024px) {
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Desktop: 5 columns */
+@media (min-width: 1025px) {
+    .summary-cards {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+.summary-card {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    border-left: 4px solid transparent;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.summary-card:hover {
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+/* ==================== MAP RESPONSIVE SIZING ==================== */
+
+.map-container {
+    width: 100%;
+    margin: 1.5rem 0;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.map-canvas {
+    width: 100%;
+    border-radius: 0.75rem;
+    background: #f3f4f6;
+}
+
+/* Mobile: Tall map for better visibility */
+@media (max-width: 640px) {
+    .map-canvas {
+        height: 200px;
+    }
+    
+    .map-legend {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+        font-size: 0.75rem;
+        padding: 0.75rem;
+    }
+    
+    .map-legend span {
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+/* Tablet: Medium map */
+@media (min-width: 641px) and (max-width: 1024px) {
+    .map-canvas {
+        height: 240px;
+    }
+}
+
+/* Desktop: Standard map */
+@media (min-width: 1025px) {
+    .map-canvas {
+        height: 220px;
+    }
+}
+
+/* ==================== CHARTS RESPONSIVE ==================== */
+
+.charts-container {
+    display: grid;
+    gap: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+/* Mobile: Single column */
+@media (max-width: 640px) {
+    .charts-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-card {
+        padding: 1rem;
+    }
+    
+    .chart-wrapper {
+        max-width: 100%;
+        max-height: 250px;
+        overflow: hidden;
+    }
+}
+
+/* Tablet: 2 columns */
+@media (min-width: 641px) and (max-width: 1024px) {
+    .charts-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Desktop: 2-3 columns based on content */
+@media (min-width: 1025px) {
+    .charts-container {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 0.9rem;
+        margin: 0.75rem 0;
+    }
+}
+
+.chart-card {
+    background: white;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.chart-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.chart-wrapper canvas {
+    max-height: 220px;
+}
+
+/* ==================== TABLE RESPONSIVE ==================== */
+
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e2e8f0;
+    margin: 0.85rem 0;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+/* Mobile: Stack table */
+@media (max-width: 640px) {
+    .data-table {
+        display: block;
+        overflow-x: auto;
+    }
+    
+    .data-table thead {
+        display: none;
+    }
+    
+    .data-table tbody {
+        display: block;
+    }
+    
+    .data-table tr {
+        display: flex;
+        flex-direction: column;
+        border-bottom: 2px solid #f3f4f6;
+        margin-bottom: 1rem;
+        padding: 1rem 0;
+    }
+    
+    .data-table td {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        font-size: 0.875rem;
+    }
+    
+    .data-table td:before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #6b7280;
+        min-width: 150px;
+    }
+}
+
+/* Tablet & Desktop: Normal table */
+@media (min-width: 641px) {
+    .data-table thead {
+        background: linear-gradient(90deg, #1e3a5f, #1a4f87 50%, #0072CE);
+        border-bottom: 2px solid rgba(37, 99, 235, 0.35);
+    }
+    
+    .data-table th {
+        padding: 0.65rem 0.85rem;
+        text-align: left;
+        font-weight: 600;
+        color: #f8fafc;
+        font-size: 0.82rem;
+    }
+    
+    .data-table td {
+        padding: 0.6rem 0.85rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .data-table tbody tr:hover {
+        background-color: #f9fafb;
+    }
+}
+
+/* ==================== MODAL RESPONSIVE ==================== */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    z-index: 50;
+    padding: 1rem;
+    overflow-y: auto;
+    padding-top: 2rem;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 0.75rem;
+    width: 100%;
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+}
+
+/* Mobile: Full width, stacked layout */
+@media (max-width: 640px) {
+    .modal-content {
+        max-width: 100%;
+        margin: 0 0.5rem;
+        max-height: calc(100vh - 2rem);
+        padding: 1rem;
+    }
+    
+    .modal-header {
+        padding: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .modal-body {
+        padding: 1rem;
+        max-height: calc(100vh - 10rem);
+        overflow-y: auto;
+    }
+    
+    .modal-footer {
+        padding: 1rem;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .modal-footer button {
+        width: 100%;
+        padding: 0.625rem;
+        font-size: 0.875rem;
+    }
+}
+
+/* Tablet */
+@media (min-width: 641px) and (max-width: 1024px) {
+    .modal-content {
+        max-width: calc(100% - 2rem);
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+}
+
+/* Desktop */
+@media (min-width: 1025px) {
+    .modal-content {
+        max-width: 700px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+}
+
+/* ==================== PDF EXPORT MODAL SPECIFIC ==================== */
+
+.pdf-options-grid {
+    display: grid;
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+/* Mobile: 1 column */
+@media (max-width: 640px) {
+    .pdf-options-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .pdf-option {
+        padding: 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .pdf-option-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .pdf-option-desc {
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
+}
+
+/* Tablet: 2 columns, compact */
+@media (min-width: 641px) and (max-width: 1024px) {
+    .pdf-options-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .pdf-option {
+        padding: 1rem;
+    }
+}
+
+/* Desktop: 2 columns, normal spacing */
+@media (min-width: 1025px) {
+    .pdf-options-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.pdf-sort-section {
+    background: #f0f9ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+/* Mobile: Single column selects */
+@media (max-width: 640px) {
+    .pdf-sort-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .pdf-sort-grid select {
+        padding: 0.5rem;
+        font-size: 0.875rem;
+    }
+}
+
+/* Tablet & Desktop: 2 columns */
+@media (min-width: 641px) {
+    .pdf-sort-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+}
+
+/* ==================== LIST/PANEL ITEMS ==================== */
+
+.list-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 0.5rem;
+    border: 1px solid #e5e7eb;
+}
+
+/* Mobile: Reduce max-height */
+@media (max-width: 640px) {
+    .list-container {
+        max-height: 250px;
+    }
+}
+
+/* Tablet: Medium height */
+@media (min-width: 641px) and (max-width: 1024px) {
+    .list-container {
+        max-height: 320px;
+    }
+}
+
+.list-item {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background-color 0.2s;
+}
+
+.list-item:last-child {
+    border-bottom: none;
+}
+
+.list-item:hover {
+    background-color: #f9fafb;
+}
+
+/* ==================== FORM RESPONSIVE ==================== */
+
+.form-grid {
+    display: grid;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+/* Mobile: Single column */
+@media (max-width: 640px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Tablet: 2 columns */
+@media (min-width: 641px) and (max-width: 1024px) {
+    .form-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Desktop: 3 columns or custom */
+@media (min-width: 1025px) {
+    .form-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-field label {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #374151;
+    font-size: 0.875rem;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+    padding: 0.625rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+}
+
+/* ==================== BUTTON GROUPS ==================== */
+
+.button-group {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Mobile: Stack buttons */
+@media (max-width: 640px) {
+    .button-group {
+        flex-direction: column;
+    }
+    
+    .button-group button {
+        width: 100%;
+        padding: 0.625rem;
+    }
+}
+
+/* ==================== NOTIFICATION/ALERT RESPONSIVE ==================== */
+
+.alert {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+}
+
+@media (max-width: 640px) {
+    .alert {
+        padding: 0.75rem;
+        font-size: 0.875rem;
+    }
+}
+
+/* ==================== SCROLL OPTIMIZATION ==================== */
+
+/* Hide scrollbar but keep functionality */
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Smooth scroll behavior */
+.smooth-scroll {
+    scroll-behavior: smooth;
+}
+
+/* ==================== PERFORMANCE OPTIMIZATIONS ==================== */
+
+/* Lazy loading images */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+img[loading="lazy"] {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ==================== DARK MODE SUPPORT ==================== */
+
+@media (prefers-color-scheme: dark) {
+    .modal-content {
+        background: #1f2937;
+        color: #f3f4f6;
+    }
+    
+    .summary-card {
+        background: #2d3748;
+        border-color: #4b5563;
+    }
+    
+    .chart-card {
+        background: #2d3748;
+    }
+    
+    .list-item {
+        background: #2d3748;
+        border-color: #4b5563;
+    }
+    
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+        background: #374151;
+        border-color: #4b5563;
+        color: #f3f4f6;
+    }
+}
+
+/* ==================== ACCESSIBILITY ==================== */
+
+/* Focus styles for keyboard navigation */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Reduced motion for animations */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ==================== COMPACT & EXPANDABLE COMPONENTS ==================== */
+
+/* Compact Maps */
+.map-compact {
+    height: 180px;
+    width: 100%;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.map-compact-wrapper {
+    position: relative;
+    height: 180px;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+@media (max-width: 640px) {
+    .map-compact {
+        height: 140px;
+    }
+    .map-compact-wrapper {
+        height: 140px;
+    }
+}
+
+/* Compact Tables - Show only first 5-8 rows */
+.table-compact {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    font-size: 0.875rem;
+}
+
+.table-compact thead {
+    background-color: #f9fafb;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.table-compact th {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+    font-size: 0.75rem;
+}
+
+.table-compact td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.table-compact tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+/* Hide rows beyond the first 5 by default */
+.table-compact tbody tr:nth-child(n+6) {
+    display: none;
+}
+
+.table-compact.expanded tbody tr {
+    display: table-row;
+}
+
+/* Expandable Button */
+.expand-btn, .collapse-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    margin-top: 0.75rem;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.expand-btn:hover, .collapse-btn:hover {
+    background-color: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.expand-btn .material-icons,
+.collapse-btn .material-icons {
+    font-size: 18px;
+}
+
+/* Full Expanded View Modal */
+.expand-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    animation: fadeIn 0.2s ease;
+}
+
+.expand-modal-overlay.active {
+    display: flex;
+}
+
+.expand-modal-content {
+    background: white;
+    border-radius: 0.75rem;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    animation: slideUp 0.3s ease;
+}
+
+.expand-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #f9fafb;
+    position: sticky;
+    top: 0;
+}
+
+.expand-modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.expand-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6b7280;
+    transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+}
+
+.expand-modal-close:hover {
+    color: #1f2937;
+}
+
+.expand-modal-body {
+    padding: 1.5rem;
+}
+
+/* Expanded table full width */
+.expand-modal-body .table-compact {
+    border: 1px solid #e5e7eb;
+}
+
+.expand-modal-body .table-compact tbody tr:nth-child(n+6) {
+    display: table-row;
+}
+
+.expand-modal-body .table-compact tbody tr {
+    display: table-row;
+}
+
+/* Expanded map full size */
+.expand-modal-body .map-compact {
+    height: 400px;
+    margin-bottom: 1rem;
+}
+
+.expand-modal-body .map-compact-wrapper {
+    height: 400px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Compact Layout Container */
+.dashboard-compact {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+@media (min-width: 1025px) {
+    .dashboard-compact {
+        grid-template-columns: repeat(2, 1fr);
+        max-height: calc(100vh - 120px);
+        gap: 1rem;
+        padding: 0.75rem;
+    }
+}
+
+.dashboard-compact-section {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.dashboard-compact-section h3 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+/* Premium polish */
+.summary-cards > div,
+.chart-card,
+.charts-container > div,
+.dashboard-compact-section,
+.table-container,
+.map-compact {
+    border-radius: 0.9rem;
+}
+
+.expand-btn {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2);
+}
+
+.expand-btn:hover {
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
+}
+
+/* Dashboard Z-density helper */
+.dashboard-z {
+    --dashboard-gap: 1rem;
+}
+
+.dashboard-z .summary-cards,
+.dashboard-z .charts-container {
+    margin-top: var(--dashboard-gap);
+    margin-bottom: var(--dashboard-gap);
+}
+
+@media (min-width: 1025px) {
+    .summary-cards {
+        gap: 0.65rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .summary-cards > div {
+        padding: 0.8rem !important;
+    }
+
+    .summary-cards > div h3 {
+        font-size: 0.68rem !important;
+        line-height: 1.1 !important;
+    }
+
+    .summary-cards > div p {
+        font-size: 1.45rem !important;
+        margin-top: 0.25rem !important;
+        line-height: 1.1 !important;
+    }
+
+    .chart-card,
+    .charts-container > div,
+    .dashboard-compact-section {
+        padding: 0.85rem !important;
+    }
+}
+
+/* Bento dashboard layout */
+.dashboard-bento {
+    display: grid;
+    gap: 0.875rem;
+    grid-template-columns: 1fr;
+}
+
+.bento-card {
+    overflow: hidden;
+}
+
+@media (min-width: 1025px) {
+    .dashboard-bento {
+        grid-template-columns: 1.25fr 0.9fr;
+        grid-auto-rows: minmax(180px, auto);
+    }
+
+    .dashboard-bento .bento-map {
+        grid-row: span 2;
+    }
+}
+
+.chart-container-tight {
+    position: relative;
+    height: 150px;
+}
+
+.chart-container-tight canvas {
+    max-height: 150px !important;
+}
+
+/* Map size preferences */
+.map-size-compact {
+    height: 140px !important;
+}
+
+.map-size-large {
+    height: 210px !important;
+}
+
+@media (max-width: 640px) {
+    .map-size-compact {
+        height: 140px !important;
+    }
+
+    .map-size-large {
+        height: 210px !important;
+    }
+}
+
+/* Shared table size controls */
+.table-size-controls {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0.25rem 0 0.5rem;
+}
+
+.table-size-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.45rem 0.75rem;
+    border-radius: 0.6rem;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.78rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.table-size-btn:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+}
+
+.table-size-btn .material-icons {
+    font-size: 16px;
+}
+
+.table-size-compact .table-compact th,
+.table-size-compact .table-compact td,
+.table-size-compact .data-table th,
+.table-size-compact .data-table td {
+    padding-top: 0.45rem !important;
+    padding-bottom: 0.45rem !important;
+    font-size: 0.79rem !important;
+}
+
+.table-size-large .table-compact th,
+.table-size-large .table-compact td,
+.table-size-large .data-table th,
+.table-size-large .data-table td {
+    padding-top: 0.7rem !important;
+    padding-bottom: 0.7rem !important;
+    font-size: 0.9rem !important;
+}
+
+/* Dark mode premium table/card tones */
+.dark .table-container,
+.dark .dashboard-compact-section,
+.dark .charts-container > div,
+.dark .summary-cards > div {
+    background: #162033 !important;
+    border-color: #334155 !important;
+    box-shadow: 0 14px 28px rgba(2, 6, 23, 0.45);
+}
+
+.dark .table-compact,
+.dark .data-table {
+    background: #162033 !important;
+    color: #e2e8f0 !important;
+}
+
+.dark .table-compact thead,
+.dark .data-table thead {
+    background: #0f172a !important;
+}
+
+.dark .table-compact th,
+.dark .data-table th {
+    color: #cbd5e1 !important;
+    border-color: #334155 !important;
+}
+
+.dark .table-compact td,
+.dark .data-table td {
+    border-color: #334155 !important;
+}
+
+.dark .text-gray-500,
+.dark .text-gray-600,
+.dark .text-gray-700,
+.dark .text-gray-800 {
+    color: #d1d5db !important;
+}
+
+.dark .bg-gray-50 {
+    background-color: #0f172a !important;
+}
+
+.dark .table-size-btn {
+    background: #0f172a;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+.dark .table-size-btn:hover {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+/* Dark mode for expanded modal */
+@media (prefers-color-scheme: dark) {
+    .expand-modal-content {
+        background: #1f2937;
+        color: #f3f4f6;
+    }
+    
+    .expand-modal-header {
+        background-color: #111827;
+        border-bottom-color: #4b5563;
+    }
+    
+    .expand-modal-header h2 {
+        color: #f3f4f6;
+    }
+    
+    .expand-modal-close {
+        color: #9ca3af;
+    }
+    
+    .expand-modal-close:hover {
+        color: #f3f4f6;
+    }
+    
+    .expand-modal-body .table-compact {
+        background: #111827;
+        border-color: #4b5563;
+    }
+    
+    .expand-modal-body .table-compact thead {
+        background-color: #374151;
+        border-bottom-color: #4b5563;
+    }
+    
+    .expand-modal-body .table-compact th {
+        color: #d1d5db;
+    }
+    
+    .expand-modal-body .table-compact td {
+        border-bottom-color: #4b5563;
+        color: #e5e7eb;
+    }
+    
+    .expand-modal-body .table-compact tbody tr:hover {
+        background-color: #374151;
+    }
+}
+
+/* ==================== PRINT STYLES ==================== */
+
+@media print {
+    .no-print {
+        display: none;
+    }
+    
+    .dashboard-container {
+        padding: 0;
+    }
+    
+    .modal-overlay {
+        position: static;
+        background: none;
+        padding: 0;
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

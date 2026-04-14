@@ -1,0 +1,23 @@
+/* Help modal minimal styles - Tailwind handles most styling but this file is available for overrides */
+#helpModal .modal-content {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* Simple toggle and help button styling */
+.theme-toggle { display: inline-flex; align-items: center; justify-content: center; }
+.theme-toggle .material-icons { font-size: 20px; }
+
+/* Style for per-module How-to buttons */
+.module-howto-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid transparent; padding: 6px 10px; border-radius: 6px;
+  color: inherit; cursor: pointer; font-weight: 600;
+}
+.module-howto-btn:hover { background: rgba(0,0,0,0.04); }
+
+/* Keep previous id-based help button rules for backward-compatibility (if any remain) */
+.help-trigger { display: inline-flex; align-items: center; justify-content: center; }
+
+/* Simple-toggle active style */
+#simple-toggle[aria-pressed="true"] { background: rgba(3, 105, 161, 0.12); border-radius: 8px; }

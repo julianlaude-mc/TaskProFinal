@@ -1,0 +1,1865 @@
+{% extends "administrator/base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Admin Dashboard{% endblock %}
+{% block nav_dashboard %}active-nav{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Leaflet CSS/JS + MarkerCluster -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster-src.js"></script>
+
+<style>
+  .admin-dashboard-compact {
+    --admin-gap: 0.7rem;
+  }
+
+  .admin-surface {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 1rem;
+    box-shadow: 0 10px 28px -24px rgba(15, 23, 42, 0.55);
+  }
+
+  .admin-surface-soft {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 0.875rem;
+  }
+
+  .admin-stat-value {
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+  }
+
+  .gis-highlight-shell {
+    position: relative;
+    border-radius: 1rem;
+    overflow: hidden;
+  }
+
+  .gis-highlight-shell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0, 114, 206, 0.12), rgba(30, 58, 95, 0.05));
+    pointer-events: none;
+  }
+
+  .gis-header-glow {
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  .gis-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    padding: 0.18rem 0.55rem;
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .gis-insight-card {
+    border-radius: 0.75rem;
+    padding: 0.6rem 0.55rem;
+    border: 1px solid transparent;
+  }
+
+  .gis-insight-value {
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .gis-insight-label {
+    font-size: 0.64rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .gis-insight-blue {
+    background: linear-gradient(145deg, rgba(37, 99, 235, 0.14), rgba(59, 130, 246, 0.08));
+    border-color: rgba(37, 99, 235, 0.28);
+  }
+
+  .gis-insight-emerald {
+    background: linear-gradient(145deg, rgba(5, 150, 105, 0.14), rgba(16, 185, 129, 0.08));
+    border-color: rgba(5, 150, 105, 0.28);
+  }
+
+  .gis-insight-violet {
+    background: linear-gradient(145deg, rgba(124, 58, 237, 0.14), rgba(168, 85, 247, 0.08));
+    border-color: rgba(124, 58, 237, 0.28);
+  }
+
+  .gis-assistant-log {
+    min-height: 92px;
+    max-height: 148px;
+    overflow-y: auto;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(241, 245, 249, 0.9));
+    padding: 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .gis-assistant-chip {
+    font-size: 0.69rem;
+    border-radius: 9999px;
+    padding: 0.22rem 0.55rem;
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    background: #ffffff;
+    color: #334155;
+    transition: all .18s ease;
+  }
+
+  .gis-assistant-chip:hover {
+    border-color: rgba(0, 114, 206, 0.45);
+    color: #0f172a;
+    background: #f8fbff;
+  }
+
+  .gis-msg {
+    border-radius: 0.6rem;
+    padding: 0.38rem 0.52rem;
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+
+  .gis-msg-user {
+    align-self: flex-end;
+    background: rgba(0, 114, 206, 0.12);
+    border: 1px solid rgba(0, 114, 206, 0.24);
+    color: #0f172a;
+  }
+
+  .gis-msg-ai {
+    align-self: flex-start;
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: #334155;
+  }
+
+  .kpi-card {
+    position: relative;
+    overflow: hidden;
+    border-width: 1.5px;
+  }
+
+  .kpi-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.28), transparent 52%);
+  }
+
+  .kpi-blue {
+    border-color: rgba(37, 99, 235, 0.34);
+    background: linear-gradient(155deg, rgba(239, 246, 255, 0.92), rgba(255, 255, 255, 1));
+  }
+
+  .kpi-emerald {
+    border-color: rgba(5, 150, 105, 0.34);
+    background: linear-gradient(155deg, rgba(236, 253, 245, 0.92), rgba(255, 255, 255, 1));
+  }
+
+  .kpi-violet {
+    border-color: rgba(124, 58, 237, 0.34);
+    background: linear-gradient(155deg, rgba(245, 243, 255, 0.92), rgba(255, 255, 255, 1));
+  }
+
+  .kpi-amber {
+    border-color: rgba(217, 119, 6, 0.34);
+    background: linear-gradient(155deg, rgba(255, 251, 235, 0.92), rgba(255, 255, 255, 1));
+  }
+
+  .dark .admin-surface,
+  .dark .admin-surface-soft {
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    border-color: rgba(100, 116, 139, 0.38);
+    box-shadow: 0 10px 32px -24px rgba(2, 6, 23, 0.9);
+  }
+
+  .dark .admin-surface .text-slate-800,
+  .dark .admin-surface .text-slate-700,
+  .dark .admin-surface-soft .text-slate-800,
+  .dark .admin-surface-soft .text-slate-700 {
+    color: #e2e8f0 !important;
+  }
+
+  .dark .admin-surface .text-slate-600,
+  .dark .admin-surface .text-slate-500,
+  .dark .admin-surface-soft .text-slate-600,
+  .dark .admin-surface-soft .text-slate-500 {
+    color: #cbd5e1 !important;
+  }
+
+  .dark .gis-assistant-log {
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(17, 24, 39, 0.92));
+    border-color: rgba(71, 85, 105, 0.6);
+  }
+
+  .dark .gis-assistant-chip {
+    background: rgba(15, 23, 42, 0.95);
+    border-color: rgba(71, 85, 105, 0.68);
+    color: #cbd5e1;
+  }
+
+  .dark .gis-assistant-chip:hover {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: rgba(59, 130, 246, 0.65);
+    color: #e2e8f0;
+  }
+
+  .dark .gis-msg-user {
+    color: #dbeafe;
+    background: rgba(30, 58, 138, 0.35);
+    border-color: rgba(59, 130, 246, 0.45);
+  }
+
+  .dark .gis-msg-ai {
+    color: #cbd5e1;
+    background: rgba(15, 23, 42, 0.95);
+    border-color: rgba(71, 85, 105, 0.6);
+  }
+
+  .dark .kpi-blue,
+  .dark .kpi-emerald,
+  .dark .kpi-violet,
+  .dark .kpi-amber {
+    background: linear-gradient(155deg, rgba(15, 23, 42, 0.95), rgba(17, 24, 39, 0.96));
+  }
+
+  .assistant-fab {
+    position: fixed;
+    right: 1.2rem;
+    bottom: 1.15rem;
+    z-index: 70;
+    width: 3.4rem;
+    height: 3.4rem;
+    border-radius: 9999px;
+    background: linear-gradient(145deg, #0072CE, #005ba1);
+    color: #fff;
+    box-shadow: 0 20px 32px -18px rgba(0, 91, 161, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform .2s ease;
+  }
+
+  .assistant-fab:hover { transform: translateY(-1px) scale(1.03); }
+
+  .assistant-panel {
+    position: fixed;
+    right: 1.2rem;
+    bottom: 1.2rem;
+    z-index: 71;
+    width: min(380px, calc(100vw - 1.5rem));
+    border-radius: 1rem;
+    border: 1px solid rgba(148, 163, 184, 0.26);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 25px 45px -24px rgba(15, 23, 42, 0.45);
+    overflow: hidden;
+  }
+
+  .assistant-panel.hidden { display: none; }
+
+  .assistant-header {
+    padding: 0.7rem 0.8rem;
+    background: linear-gradient(145deg, #1e3a5f, #0072CE);
+    color: white;
+  }
+
+  .assistant-body {
+    padding: 0.65rem;
+  }
+
+  .dark .assistant-panel {
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    border-color: rgba(71, 85, 105, 0.62);
+  }
+
+    @media (min-width: 1280px) {
+        .admin-dashboard-compact {
+      max-height: calc(100vh - 122px);
+            overflow-y: auto;
+            padding-right: 0.25rem;
+        }
+
+        .admin-dashboard-compact > div {
+      margin-bottom: var(--admin-gap) !important;
+        }
+
+        .admin-charts-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--admin-gap);
+        }
+
+        .admin-charts-grid > .chart-section,
+        .admin-charts-grid > .analytics-section {
+            display: contents;
+        }
+
+        .admin-charts-grid .bg-white {
+          padding: 0.72rem !important;
+        }
+
+        .admin-chart-height {
+          height: 128px !important;
+        }
+    }
+
+    .admin-chart-height {
+        height: 180px;
+    }
+
+      @media (max-width: 1023px) {
+        .admin-chart-height {
+          height: 200px;
+        }
+      }
+</style>
+
+    <div class="space-y-3 admin-dashboard-compact">
+
+  <!-- Simple Mode Notice (Only shows in Simple Mode) -->
+  <div class="hidden simple-mode-notice bg-gradient-to-r from-[#0072CE]/10 to-blue-50 border border-[#0072CE]/20 rounded-2xl p-6 text-center">
+      <div class="flex items-center justify-center gap-3 mb-3">
+          <span class="material-icons text-[#0072CE] text-3xl">check_circle</span>
+          <h2 class="text-xl font-bold text-[#0072CE]">Simple Mode Active</h2>
+      </div>
+      <p class="text-slate-600 mb-4">Charts and complex features are hidden. You're viewing essential information only.</p>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+          <a href="{% url 'administrator_proposals_url' %}" class="bg-white border border-[#0072CE]/20 rounded-xl p-4 hover:shadow-lg hover:border-[#0072CE]/40 transition-all duration-200">
+              <span class="material-icons text-[#0072CE] text-2xl mb-2">description</span>
+              <p class="font-medium text-slate-700">View Proposals</p>
+          </a>
+          <a href="{% url 'administrator_projects_url' %}" class="bg-white border border-[#0072CE]/20 rounded-xl p-4 hover:shadow-lg hover:border-[#0072CE]/40 transition-all duration-200">
+              <span class="material-icons text-[#0072CE] text-2xl mb-2">folder</span>
+              <p class="font-medium text-slate-700">View Projects</p>
+          </a>
+          <a href="{% url 'administrator_users_url' %}" class="bg-white border border-[#0072CE]/20 rounded-xl p-4 hover:shadow-lg hover:border-[#0072CE]/40 transition-all duration-200">
+              <span class="material-icons text-[#0072CE] text-2xl mb-2">people</span>
+              <p class="font-medium text-slate-700">View Users</p>
+          </a>
+          <a href="{% url 'administrator_extension_requests_url' %}" class="bg-white border border-[#0072CE]/20 rounded-xl p-4 hover:shadow-lg hover:border-[#0072CE]/40 transition-all duration-200">
+              <span class="material-icons text-[#0072CE] text-2xl mb-2">schedule</span>
+              <p class="font-medium text-slate-700">Extensions</p>
+          </a>
+      </div>
+  </div>
+  
+  <!-- =========================== -->
+  <!-- 1. GIS MAP SECTION (Hidden in Simple Mode) -->
+  <!-- =========================== -->
+  <div class="admin-surface gis-highlight-shell overflow-hidden gis-map-section advanced-feature">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-[#1e3a5f] via-[#1a4f87] to-[#0072CE] px-6 py-4 gis-header-glow relative">
+        <div class="flex items-center justify-between gap-3 relative z-10">
+          <div class="flex items-center gap-3">
+          <div class="p-2 bg-white/20 rounded-lg ring-1 ring-white/30">
+            <span class="material-icons text-white">map</span>
+          </div>
+          <div>
+            <h2 class="text-lg font-semibold text-white">GIS Dashboard</h2>
+            <p class="text-sm text-blue-100">Projects across Biliran Province</p>
+          </div>
+          </div>
+          <div class="hidden lg:flex items-center gap-1.5">
+            <span class="gis-chip"><span class="w-1.5 h-1.5 rounded-full bg-[#3b82f6]"></span>Ongoing</span>
+            <span class="gis-chip"><span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>Completed</span>
+            <span class="gis-chip"><span class="w-1.5 h-1.5 rounded-full bg-[#ef4444]"></span>Terminated</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map + Data Rail -->
+      <div class="p-3 lg:p-2.5">
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-2.5 items-start">
+          <!-- Left: Balanced rectangular map -->
+          <div class="xl:col-span-8 flex flex-col space-y-2.5">
+            <div class="rounded-xl border border-slate-200 overflow-hidden bg-slate-50" style="aspect-ratio: 16 / 9; max-height: 340px;">
+              <div id="map" class="w-full h-full z-0" tabindex="0"></div>
+            </div>
+            <p class="text-xs text-slate-400 mt-2 text-center">💡 Click map to find nearest projects • Arrow keys to pan • Scroll to zoom</p>
+
+            <div class="admin-surface-soft p-3">
+              <h3 class="font-semibold text-slate-700 mb-2 text-sm flex items-center gap-2">
+                <span class="material-icons text-sm text-[#0072CE]">info</span>
+                Legend
+              </h3>
+              <ul class="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1.5 text-xs">
+                <li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#6b7280;"></span> <span class="text-slate-600">New</span></li>
+                <li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#3b82f6;"></span> <span class="text-slate-600">Ongoing</span></li>
+                <li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#10b981;"></span> <span class="text-slate-600">Completed</span></li>
+                <li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#ef4444;"></span> <span class="text-slate-600">Terminated</span></li>
+                <li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full ring-2 ring-amber-400" style="background:#d97706;"></span> <span class="text-slate-600">Nearest</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Right: Graphs/Data rail -->
+          <div class="xl:col-span-4 space-y-2.5">
+            <!-- Compact Snapshot -->
+            <div class="grid grid-cols-2 gap-2">
+              <div class="admin-surface-soft p-2.5">
+                <p class="text-[11px] uppercase tracking-wide text-slate-500">Users</p>
+                <p class="text-lg font-bold text-slate-800 admin-stat-value">{{ total_users|default:0 }}</p>
+              </div>
+              <div class="admin-surface-soft p-2.5">
+                <p class="text-[11px] uppercase tracking-wide text-slate-500">Projects</p>
+                <p class="text-lg font-bold text-slate-800 admin-stat-value">{{ total_projects|default:0 }}</p>
+              </div>
+              <div class="admin-surface-soft p-2.5">
+                <p class="text-[11px] uppercase tracking-wide text-slate-500">Proposals</p>
+                <p class="text-lg font-bold text-slate-800 admin-stat-value">{{ total_proposals|default:0 }}</p>
+              </div>
+              <div class="admin-surface-soft p-2.5">
+                <p class="text-[11px] uppercase tracking-wide text-slate-500">Pending Ext.</p>
+                <p class="text-lg font-bold text-slate-800 admin-stat-value">{{ pending_extensions|default:0 }}</p>
+              </div>
+            </div>
+
+            <!-- Controls + data row -->
+            <div class="grid grid-cols-1 gap-2.5">
+              <div class="admin-surface-soft p-3 border-[#0072CE]/20">
+                <h3 class="font-semibold text-slate-700 mb-2 text-sm flex items-center gap-2">
+                  <span class="material-icons text-sm text-[#0072CE]">tune</span>
+                  Controls
+                </h3>
+                <div class="space-y-2.5">
+                  <div>
+                    <label class="text-xs text-slate-500 block mb-1">Nearest Count</label>
+                    <input id="nearestCount" type="number" min="1" max="50" value="5"
+                      class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#0072CE]/30 focus:border-[#0072CE] transition-all">
+                  </div>
+                  <button id="clearHighlights"
+                    class="w-full px-3 py-1.5 bg-white text-slate-600 text-sm rounded-lg hover:bg-slate-50 transition border border-slate-300 flex items-center justify-center gap-2">
+                    <span class="material-icons text-sm">clear_all</span>
+                    Clear Highlights
+                  </button>
+                </div>
+              </div>
+
+              <div class="admin-surface-soft p-3">
+                <h3 class="font-semibold text-slate-700 mb-2 text-sm flex items-center gap-2">
+                  <span class="material-icons text-sm text-[#0072CE]">tips_and_updates</span>
+                  Quick GIS Facts
+                </h3>
+                <ul class="space-y-1.5 text-xs text-slate-600">
+                  <li class="flex items-start gap-2"><span class="material-icons text-[14px] text-blue-500 mt-0.5">check_circle</span><span>Use the floating assistant at the bottom-right to ask about projects and proposals.</span></li>
+                  <li class="flex items-start gap-2"><span class="material-icons text-[14px] text-emerald-500 mt-0.5">location_on</span><span>Click anywhere on the map to list nearest projects.</span></li>
+                  <li class="flex items-start gap-2"><span class="material-icons text-[14px] text-violet-500 mt-0.5">keyboard</span><span>Arrow keys pan the map, Enter zooms in, Space zooms out.</span></li>
+                </ul>
+              </div>
+            </div>
+            
+            <!-- Nearest Projects Results -->
+            <div id="nearestResults" class="space-y-2 max-h-28 overflow-y-auto">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+  </div>
+
+  <!-- =========================== -->
+  <!-- 2. QUICK STATS CARDS -->
+  <!-- =========================== -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div class="admin-surface kpi-card kpi-blue p-3 hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between">
+              <div>
+                  <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Users</p>
+                  <p class="text-[1.35rem] font-bold text-slate-800 mt-1 admin-stat-value">{{ total_users|default:0 }}</p>
+              </div>
+              <div class="p-3 bg-gradient-to-br from-[#0072CE] to-blue-600 rounded-xl shadow-lg shadow-blue-500/20">
+                  <span class="material-icons text-white">people</span>
+              </div>
+          </div>
+      </div>
+    <div class="admin-surface kpi-card kpi-emerald p-3 hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between">
+              <div>
+                  <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Proposals</p>
+                  <p class="text-[1.35rem] font-bold text-slate-800 mt-1 admin-stat-value">{{ total_proposals|default:0 }}</p>
+              </div>
+              <div class="p-3 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl shadow-lg shadow-green-500/20">
+                  <span class="material-icons text-white">description</span>
+              </div>
+          </div>
+      </div>
+    <div class="admin-surface kpi-card kpi-violet p-3 hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between">
+              <div>
+                  <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Projects</p>
+                  <p class="text-[1.35rem] font-bold text-slate-800 mt-1 admin-stat-value">{{ total_projects|default:0 }}</p>
+              </div>
+              <div class="p-3 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl shadow-lg shadow-purple-500/20">
+                  <span class="material-icons text-white">folder</span>
+              </div>
+          </div>
+      </div>
+    <div class="admin-surface kpi-card kpi-amber p-3 hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between">
+              <div>
+                  <p class="text-xs text-slate-500 uppercase tracking-wider font-medium">Pending Ext.</p>
+                  <p class="text-[1.35rem] font-bold text-slate-800 mt-1 admin-stat-value">{{ pending_extensions|default:0 }}</p>
+              </div>
+              <div class="p-3 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl shadow-lg shadow-orange-500/20">
+                  <span class="material-icons text-white">schedule</span>
+              </div>
+          </div>
+      </div>
+  </div>
+
+  <!-- =========================== -->
+  <!-- 3. PROJECT & TASK CHARTS (Hidden in Simple Mode) -->
+  <!-- =========================== -->
+    <div class="admin-charts-grid">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 chart-section">
+      <!-- Project Status Chart -->
+    <div class="admin-surface p-3.5">
+          <h3 class="text-base font-semibold text-slate-700 mb-4 flex items-center gap-2">
+              <div class="p-2 bg-[#0072CE]/10 rounded-lg">
+                <span class="material-icons text-[#0072CE] text-lg">bar_chart</span>
+              </div>
+              Project Status Distribution
+          </h3>
+          <div class="relative admin-chart-height w-full">
+              <canvas id="dashboardProjectChart"></canvas>
+          </div>
+      </div>
+
+      <!-- Task Completion Chart -->
+    <div class="admin-surface p-3.5">
+          <h3 class="text-base font-semibold text-slate-700 mb-4 flex items-center gap-2">
+              <div class="p-2 bg-teal-500/10 rounded-lg">
+                <span class="material-icons text-teal-500 text-lg">task_alt</span>
+              </div>
+              Task Completion Overview
+          </h3>
+          <div class="relative admin-chart-height w-full">
+              <canvas id="taskCompletionChart"></canvas>
+          </div>
+      </div>
+  </div>
+
+  <!-- =========================== -->
+  <!-- 4. USERS & PROPOSALS (Hidden in Simple Mode) -->
+  <!-- =========================== -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 chart-section">
+      
+      <!-- User Roles Chart -->
+    <div class="admin-surface p-3.5">
+          <h3 class="text-base font-semibold text-slate-700 mb-4 flex items-center gap-2">
+              <div class="p-2 bg-indigo-500/10 rounded-lg">
+                <span class="material-icons text-indigo-500 text-lg">group</span>
+              </div>
+              User Demographics (Roles)
+          </h3>
+          <div class="relative admin-chart-height w-full">
+              <canvas id="userRolesChart"></canvas>
+          </div>
+      </div>
+
+      <!-- Proposal Status Chart -->
+    <div class="admin-surface p-3.5">
+          <h3 class="text-base font-semibold text-slate-700 mb-4 flex items-center gap-2">
+              <div class="p-2 bg-purple-500/10 rounded-lg">
+                <span class="material-icons text-purple-500 text-lg">description</span>
+              </div>
+              Proposal Status Overview
+          </h3>
+          <div class="relative admin-chart-height w-full">
+              <canvas id="proposalStatusChart"></canvas>
+          </div>
+      </div>
+
+  </div>
+
+  <!-- =========================== -->
+  <!-- 5. TRENDS & ANALYTICS (Hidden in Simple Mode) -->
+  <!-- =========================== -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 analytics-section">
+      
+      <!-- Proposals Over Time -->
+    <div class="admin-surface p-3.5">
+          <h3 class="text-base font-semibold text-slate-700 mb-4 flex items-center gap-2">
+              <div class="p-2 bg-emerald-500/10 rounded-lg">
+                <span class="material-icons text-emerald-500 text-lg">trending_up</span>
+              </div>
+              Proposals Over Time (Last 12 Months)
+          </h3>
+          <div class="relative admin-chart-height w-full">
+              <canvas id="proposalsTrendChart"></canvas>
+          </div>
+      </div>
+
+      <!-- Extension Requests Status -->
+    <div class="admin-surface p-3.5">
+          <h3 class="text-base font-semibold text-slate-700 mb-4 flex items-center gap-2">
+              <div class="p-2 bg-amber-500/10 rounded-lg">
+                <span class="material-icons text-amber-500 text-lg">schedule</span>
+              </div>
+              Extension Requests Status
+          </h3>
+          <div class="relative admin-chart-height w-full">
+              <canvas id="extensionStatusChart"></canvas>
+          </div>
+      </div>
+
+  </div>
+  </div>
+
+  <!-- =========================== -->
+  <!-- 6. SUMMARY CARDS (Bottom)   -->
+  <!-- =========================== -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <!-- Equipment Value Allocated -->
+    <div class="admin-surface p-3">
+          <div class="flex items-center gap-3 mb-2">
+              <div class="p-2 bg-[#0072CE]/10 rounded-lg">
+                  <span class="material-icons text-[#0072CE] text-lg">account_balance_wallet</span>
+              </div>
+              <h3 class="text-sm font-medium text-slate-500">Equipment Allocated</h3>
+          </div>
+            <p class="text-lg font-bold text-slate-800 admin-stat-value">
+              ₱{{ total_budget|floatformat:0|intcomma }}
+          </p>
+      </div>
+
+      <!-- Equipment Value Delivered -->
+    <div class="admin-surface p-3">
+          <div class="flex items-center gap-3 mb-2">
+              <div class="p-2 bg-emerald-500/10 rounded-lg">
+                  <span class="material-icons text-emerald-500 text-lg">local_shipping</span>
+              </div>
+              <h3 class="text-sm font-medium text-slate-500">Equipment Delivered</h3>
+          </div>
+            <p class="text-lg font-bold text-slate-800 admin-stat-value">
+              ₱{{ total_spent|floatformat:0|intcomma }}
+          </p>
+      </div>
+
+      <!-- Pending Delivery Value -->
+    <div class="admin-surface p-3">
+          <div class="flex items-center gap-3 mb-2">
+              <div class="p-2 bg-amber-500/10 rounded-lg">
+                  <span class="material-icons text-amber-500 text-lg">pending</span>
+              </div>
+              <h3 class="text-sm font-medium text-slate-500">Pending Delivery</h3>
+          </div>
+            <p class="text-lg font-bold text-slate-800 admin-stat-value">
+              ₱{{ total_remaining|floatformat:0|intcomma }}
+          </p>
+      </div>
+
+      <!-- Delivery Rate -->
+    <div class="admin-surface p-3">
+          <div class="flex items-center gap-3 mb-2">
+              <div class="p-2 bg-violet-500/10 rounded-lg">
+                  <span class="material-icons text-violet-500 text-lg">speed</span>
+              </div>
+              <h3 class="text-sm font-medium text-slate-500">Delivery Rate</h3>
+          </div>
+            <p class="text-lg font-bold text-slate-800 admin-stat-value">
+              {{ utilization_rate }}%
+          </p>
+      </div>
+  </div>
+
+  <!-- =========================== -->
+  <!-- 7. ACTIVITY FEED            -->
+  <!-- =========================== -->
+    <div class="admin-surface p-3.5">
+      <div class="flex items-center justify-between mb-4">
+          <h3 class="text-base font-semibold text-slate-700 flex items-center gap-2">
+              <div class="p-2 bg-[#0072CE]/10 rounded-lg">
+                  <span class="material-icons text-[#0072CE] text-lg">timeline</span>
+              </div>
+              Recent Activity
+          </h3>
+          <a href="{% url 'administrator_audit_logs_url' %}" class="text-[#0072CE] hover:text-[#005ba1] text-sm font-medium flex items-center gap-1">
+              View All <span class="material-icons text-sm">arrow_forward</span>
+          </a>
+      </div>
+    <div class="space-y-2 max-h-52 overflow-y-auto">
+          {% if recent_activities %}
+              {% for activity in recent_activities %}
+              <div class="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 transition border border-slate-200/70 dark:border-slate-700/70">
+                  <div class="flex-shrink-0 mt-0.5">
+                      {% if 'approved' in activity.action|lower %}
+                          <div class="p-1.5 bg-emerald-100 rounded-lg"><span class="material-icons text-emerald-600 text-sm">check_circle</span></div>
+                      {% elif 'declined' in activity.action|lower or 'rejected' in activity.action|lower or 'deleted' in activity.action|lower %}
+                          <div class="p-1.5 bg-red-100 rounded-lg"><span class="material-icons text-red-600 text-sm">cancel</span></div>
+                      {% elif 'created' in activity.action|lower or 'added' in activity.action|lower %}
+                          <div class="p-1.5 bg-blue-100 rounded-lg"><span class="material-icons text-blue-600 text-sm">add_circle</span></div>
+                      {% elif 'updated' in activity.action|lower or 'edited' in activity.action|lower %}
+                          <div class="p-1.5 bg-amber-100 rounded-lg"><span class="material-icons text-amber-600 text-sm">edit</span></div>
+                      {% elif 'login' in activity.action|lower %}
+                          <div class="p-1.5 bg-violet-100 rounded-lg"><span class="material-icons text-violet-600 text-sm">login</span></div>
+                      {% else %}
+                          <div class="p-1.5 bg-slate-200 rounded-lg"><span class="material-icons text-slate-600 text-sm">info</span></div>
+                      {% endif %}
+                  </div>
+                  <div class="flex-1 min-w-0">
+                        <p class="text-sm text-slate-700 dark:text-slate-100">{{ activity.action }}</p>
+                      <div class="flex items-center gap-2 mt-1">
+                          <span class="text-xs text-slate-500 dark:text-slate-300 font-medium">{{ activity.user.first_name }} {{ activity.user.last_name }}</span>
+                          <span class="text-xs text-slate-300 dark:text-slate-500">•</span>
+                          <span class="text-xs text-slate-400 dark:text-slate-400">{{ activity.timestamp|timesince }} ago</span>
+                      </div>
+                  </div>
+              </div>
+              {% endfor %}
+          {% else %}
+                <div class="text-center py-8 text-slate-400 dark:text-slate-400">
+                  <span class="material-icons text-4xl mb-2">history</span>
+                  <p class="text-sm dark:text-slate-300">No recent activity</p>
+              </div>
+          {% endif %}
+      </div>
+  </div>
+
+</div>
+
+<button id="assistantFab" type="button" class="assistant-fab advanced-feature" title="Open Assistant" aria-label="Open Assistant">
+  <span class="material-icons">smart_toy</span>
+</button>
+
+<div id="assistantPanel" class="assistant-panel advanced-feature" role="dialog" aria-label="Local System Assistant" data-ai-url="{% url 'assistant_ai_chat_url' %}">
+  <div class="assistant-header flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2">
+      <span class="material-icons text-[18px]">smart_toy</span>
+      <div>
+        <p class="text-sm font-semibold leading-tight">TaskPro AI Assistant</p>
+        <p class="text-[11px] text-blue-100">AI + local system summary</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <label class="flex items-center gap-1.5 text-[11px] text-white/90">
+        <input id="assistantModeToggle" type="checkbox" class="h-3.5 w-3.5" checked>
+        AI mode
+      </label>
+      <button id="assistantHide" type="button" class="h-7 w-7 rounded-md bg-white/18 hover:bg-white/25 flex items-center justify-center" title="Hide Assistant" aria-label="Hide Assistant">
+        <span class="material-icons text-[16px]">close</span>
+      </button>
+    </div>
+  </div>
+  <div class="assistant-body">
+    <p class="text-[11px] text-slate-500 mb-2">Ask about projects, proposals, municipalities, names, statuses, and what this system can do.</p>
+    <div class="flex flex-wrap gap-1.5 mb-2.5" id="gisAssistantPresets">
+      <button type="button" class="gis-assistant-chip" data-question="Hello">Hello</button>
+      <button type="button" class="gis-assistant-chip" data-question="Show me totals">Totals</button>
+      <button type="button" class="gis-assistant-chip" data-question="Top project statuses">Top statuses</button>
+      <button type="button" class="gis-assistant-chip" data-question="How many proposals in Naval?">Proposals by municipality</button>
+      <button type="button" class="gis-assistant-chip" data-question="Show me proposal names">Proposal names</button>
+      <button type="button" class="gis-assistant-chip" data-question="What can this system do?">System capabilities</button>
+      <button type="button" class="gis-assistant-chip" data-question="Who are you?">Who are you?</button>
+    </div>
+    <div id="gisAssistantLog" class="gis-assistant-log">
+      <div class="gis-msg gis-msg-ai">Hi! I’m your local TaskPro assistant. Ask me about project/proposal names, municipalities, statuses, and system functions.</div>
+    </div>
+    <div class="mt-2 flex items-center gap-2">
+      <input id="gisAssistantInput" type="text" placeholder="Ask anything about current system data..."
+        class="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-[#0072CE]/30 focus:border-[#0072CE] transition-all">
+      <button id="gisAssistantAsk" type="button"
+        class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#0072CE] text-white hover:bg-[#005ba1] transition">
+        Ask
+      </button>
+    </div>
+    <div class="mt-1.5 flex items-center gap-2 text-[11px] text-slate-400">
+      <span class="material-icons text-xs">lock</span>
+      AI + local • Uses summary only
+    </div>
+  </div>
+</div>
+
+<!-- Leaflet JS logic -->
+<script>
+try {
+// FIX: Retrieve data as strings first, then parse. Prevents crashes if empty.
+const projectsRaw = "{{ projects_json|escapejs }}";
+const proposalsRaw = "{{ proposals_json|escapejs }}";
+const PROJECTS = projectsRaw ? JSON.parse(projectsRaw) : [];
+const PROPOSALS = proposalsRaw ? JSON.parse(proposalsRaw) : [];
+
+function buildDemoMapProjects(realProjects) {
+  const projectsWithCoords = realProjects.filter(project => project.latitude != null && project.longitude != null);
+  if (projectsWithCoords.length >= 16) return realProjects;
+
+  const municipalCenters = {
+    almeria: [11.6167, 124.4333],
+    biliran: [11.5833, 124.4667],
+    cabucgayan: [11.4667, 124.5500],
+    caibiran: [11.5500, 124.5833],
+    culaba: [11.6500, 124.5500],
+    kawayan: [11.6667, 124.5000],
+    maripipi: [11.7833, 124.3333],
+    naval: [11.5667, 124.4000]
+  };
+  const fallbackMunicipalities = Object.keys(municipalCenters);
+  const statuses = ['new', 'ongoing', 'completed', 'terminated'];
+  const needed = Math.min(22 - projectsWithCoords.length, 18);
+  const demo = [];
+
+  for (let idx = 0; idx < needed; idx += 1) {
+    const mKey = fallbackMunicipalities[idx % fallbackMunicipalities.length];
+    const center = municipalCenters[mKey];
+    const latitude = center[0] + ((idx % 3) - 1) * 0.008;
+    const longitude = center[1] + ((idx % 4) - 1.5) * 0.008;
+    demo.push({
+      id: `demo-${idx + 1}`,
+      title: `Demo Project ${idx + 1}`,
+      description: 'Demo record for GIS visualization density.',
+      municipality: mKey.charAt(0).toUpperCase() + mKey.slice(1),
+      province: 'Biliran',
+      beneficiary: 'Demo Beneficiary',
+      proponent: 'Demo Proponent',
+      status: statuses[idx % statuses.length],
+      funds: 100000 + (idx * 25000),
+      latitude,
+      longitude,
+      is_demo: true
+    });
+  }
+
+  return [...realProjects, ...demo];
+}
+
+const MAP_PROJECTS = buildDemoMapProjects(PROJECTS);
+
+const BILIRAN_CENTER = [11.55, 124.47];
+const map = L.map('map', { preferCanvas: true }).setView(BILIRAN_CENTER, 11.5);
+window.adminDashboardMap = map;
+setTimeout(() => map.invalidateSize(), 120);
+
+// Base layers
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles &copy; Esri'
+});
+
+// Layers and markers - using project statuses
+const layers = { new: L.markerClusterGroup(), ongoing: L.markerClusterGroup(), completed: L.markerClusterGroup(), terminated: L.markerClusterGroup() };
+const kdPoints = [];
+const statusColors = { new: '#6b7280', ongoing: '#3b82f6', completed: '#10b981', terminated: '#ef4444' };
+
+function coloredIcon(color) {
+  return L.divIcon({
+    html: `<div style="width:22px;height:22px;border-radius:50%;background:${color};
+            box-shadow:0 0 6px ${color};border:2px solid #fff;"></div>`,
+    className: '', iconSize: [22,22], iconAnchor: [11,11]
+  });
+}
+
+MAP_PROJECTS.forEach(project => {
+  if (project.latitude == null || project.longitude == null) return;
+  const lat = parseFloat(project.latitude), lng = parseFloat(project.longitude);
+  const status = project.status || 'new';
+  const marker = L.marker([lat, lng], { icon: coloredIcon(statusColors[status] || '#374151') });
+  const fundsFormatted = project.funds ? '₱' + project.funds.toLocaleString() : 'N/A';
+  const projectTitle = project.is_demo ? `[Demo] ${project.title}` : project.title;
+  const statusLabel = (project.status || 'new').replaceAll('_', ' ');
+  const popup = `
+    <div style="min-width:220px;">
+      <strong>${escapeHtml(projectTitle)}</strong><br/>
+      <small class="text-gray-500">${escapeHtml(project.municipality)}, ${escapeHtml(project.province)}</small><br/>
+      <div style="margin-top:.3rem;">${escapeHtml(project.description || '').slice(0,200)}</div>
+      <div style="margin-top:.4rem;font-size:.9rem;color:#555;">
+        Status: ${escapeHtml(statusLabel)}<br/>
+        Beneficiary: ${escapeHtml(project.beneficiary || 'N/A')}<br/>
+        Proponent: ${escapeHtml(project.proponent || 'N/A')}<br/>
+        Funds: ${fundsFormatted}
+      </div>
+    </div>`;
+  marker.bindPopup(popup);
+  if (layers[status]) {
+    layers[status].addLayer(marker);
+  } else {
+    layers.new.addLayer(marker);
+  }
+  kdPoints.push({ point: [lat, lng], data: project, markerRef: marker });
+});
+
+const localSystemFacts = {
+  totalProjects: parseInt("{{ total_projects|default:0 }}", 10) || 0,
+  totalProposals: parseInt("{{ total_proposals|default:0 }}", 10) || 0,
+  totalUsers: parseInt("{{ total_users|default:0 }}", 10) || 0,
+  pendingExtensions: parseInt("{{ pending_extensions|default:0 }}", 10) || 0
+};
+
+const mappedProjects = PROJECTS.filter(project => project.latitude != null && project.longitude != null);
+const statusCount = { new: 0, ongoing: 0, completed: 0, terminated: 0 };
+const municipalityCount = {};
+const searchableProjects = [];
+const proposalStatusCount = {};
+const proposalMunicipalityCount = {};
+const searchableProposals = [];
+
+PROJECTS.forEach(project => {
+  const status = (project.status || 'new').toLowerCase();
+  if (statusCount[status] !== undefined) statusCount[status] += 1;
+
+  const municipality = (project.municipality || '').trim();
+  if (municipality) {
+    const key = municipality.toLowerCase();
+    municipalityCount[key] = (municipalityCount[key] || 0) + 1;
+  }
+
+  searchableProjects.push({
+    title: (project.title || '').trim(),
+    municipality: municipality,
+    province: (project.province || '').trim(),
+    status: status,
+    beneficiary: (project.beneficiary || '').trim(),
+    proponent: (project.proponent || '').trim(),
+    funds: project.funds || null
+  });
+});
+
+PROPOSALS.forEach(proposal => {
+  const status = (proposal.status || 'pending').toLowerCase();
+  proposalStatusCount[status] = (proposalStatusCount[status] || 0) + 1;
+
+  const municipality = (proposal.municipality || '').trim();
+  if (municipality) {
+    const key = municipality.toLowerCase();
+    proposalMunicipalityCount[key] = (proposalMunicipalityCount[key] || 0) + 1;
+  }
+
+  searchableProposals.push({
+    title: (proposal.title || '').trim(),
+    municipality: municipality,
+    province: (proposal.province || '').trim(),
+    status: status,
+    submittedBy: (proposal.submitted_by || '').trim(),
+    proposedAmount: proposal.proposed_amount || null,
+    submissionDate: proposal.submission_date || ''
+  });
+});
+
+const totalStatus = Object.values(statusCount).reduce((sum, value) => sum + value, 0);
+const completedRate = totalStatus ? Math.round((statusCount.completed / totalStatus) * 100) : 0;
+const topStatusKey = Object.entries(statusCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'new';
+const topStatusLabel = topStatusKey.charAt(0).toUpperCase() + topStatusKey.slice(1);
+const topMunicipality = Object.entries(municipalityCount).sort((a, b) => b[1] - a[1])[0] || null;
+const topProposalMunicipality = Object.entries(proposalMunicipalityCount).sort((a, b) => b[1] - a[1])[0] || null;
+
+const knownMunicipalities = Array.from(new Set([
+  ...Object.keys(municipalityCount),
+  ...Object.keys(proposalMunicipalityCount),
+  'almeria', 'biliran', 'cabucgayan', 'caibiran', 'culaba', 'kawayan', 'maripipi', 'naval'
+]));
+
+function formatTitleCase(value) {
+  return String(value || '').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function findProjectByName(questionLower) {
+  const candidates = searchableProjects.filter(project => project.title && questionLower.includes(project.title.toLowerCase()));
+  if (candidates.length) return candidates[0];
+
+  const tokens = questionLower.split(/[^a-z0-9]+/).filter(token => token.length > 3);
+  if (!tokens.length) return null;
+  let best = null;
+  let bestScore = 0;
+
+  searchableProjects.forEach(project => {
+    const haystack = `${project.title} ${project.municipality} ${project.province} ${project.beneficiary} ${project.proponent}`.toLowerCase();
+    const score = tokens.reduce((total, token) => total + (haystack.includes(token) ? 1 : 0), 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = project;
+    }
+  });
+
+  return bestScore >= 2 ? best : null;
+}
+
+function findProposalByName(questionLower) {
+  const direct = searchableProposals.find(proposal => proposal.title && questionLower.includes(proposal.title.toLowerCase()));
+  if (direct) return direct;
+
+  const tokens = questionLower.split(/[^a-z0-9]+/).filter(token => token.length > 3);
+  if (!tokens.length) return null;
+  let best = null;
+  let bestScore = 0;
+
+  searchableProposals.forEach(proposal => {
+    const haystack = `${proposal.title} ${proposal.municipality} ${proposal.province} ${proposal.submittedBy}`.toLowerCase();
+    const score = tokens.reduce((total, token) => total + (haystack.includes(token) ? 1 : 0), 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = proposal;
+    }
+  });
+
+  return bestScore >= 2 ? best : null;
+}
+
+function detectMunicipalityInQuestion(questionLower) {
+  return knownMunicipalities.find(name => questionLower.includes(name)) || null;
+}
+
+function buildSystemSnapshotAnswer() {
+  const municipalityText = topMunicipality
+    ? `${formatTitleCase(topMunicipality[0])} has the highest project concentration (${topMunicipality[1]}).`
+    : 'Municipality concentration is not available.';
+  const proposalMunicipalityText = topProposalMunicipality
+    ? `${formatTitleCase(topProposalMunicipality[0])} has the most proposals (${topProposalMunicipality[1]}).`
+    : 'Proposal municipality concentration is not available.';
+  return `Snapshot: ${localSystemFacts.totalProjects} projects, ${localSystemFacts.totalProposals} proposals, ${localSystemFacts.totalUsers} users, ${localSystemFacts.pendingExtensions} pending extensions, and ${mappedProjects.length} mapped projects. ${municipalityText} ${proposalMunicipalityText}`;
+}
+
+const moduleLinks = {
+  dashboard: "{% url 'administrator_dashboard_url' %}",
+  projects: "{% url 'administrator_projects_url' %}",
+  proposals: "{% url 'administrator_proposals_url' %}",
+  users: "{% url 'administrator_users_url' %}",
+  reports: "{% url 'administrator_reports_url' %}"
+};
+
+function linkTo(label, href) {
+  if (!href) return '';
+  const safeLabel = escapeHtml(label || 'Open link');
+  return `<span class="text-slate-600">${safeLabel}</span> <a href="${href}" class="text-blue-600 underline">Go now?</a>`;
+}
+
+function respondToLocalGISQuestion(questionRaw) {
+  const question = (questionRaw || '').trim();
+  const q = question.toLowerCase();
+
+  if (/(^|\b)(hi|hello|hey|good morning|good afternoon|good evening)(\b|$)/i.test(q)) {
+    return { answer: 'Hi! Ask me about project/proposal names, statuses, municipalities, or system totals.' };
+  }
+  if (q.includes('help') || q.includes('keywords') || q.includes('commands')) {
+    return { answer: 'Try: project names, proposal names, completion rate, top statuses, or a municipality name.' };
+  }
+  if (q.includes('totals') || q.includes('summary') || q.includes('snapshot')) {
+    return { answer: buildSystemSnapshotAnswer() };
+  }
+  if (q.includes('counts')) {
+    return { answer: buildSystemSnapshotAnswer() };
+  }
+  if (q.includes('status') && !q.includes('project') && !q.includes('proposal')) {
+    return { answer: `Top project status is ${topStatusLabel} (${statusCount[topStatusKey] || 0} projects).` };
+  }
+  if (q.includes('reports')) {
+    return { answer: 'Reports are available in the Reports module.', linkHtml: linkTo('Reports module', moduleLinks.reports) };
+  }
+  if (q.includes('users')) {
+    return { answer: 'User management is available in the Users module.', linkHtml: linkTo('Users module', moduleLinks.users) };
+  }
+  if ((q.includes('projects') || q.includes('project')) && q.includes('list')) {
+    return { answer: 'Open the Projects module for the full list.', linkHtml: linkTo('Projects module', moduleLinks.projects) };
+  }
+  if ((q.includes('proposals') || q.includes('proposal')) && q.includes('list')) {
+    return { answer: 'Open the Proposals module for the full list.', linkHtml: linkTo('Proposals module', moduleLinks.proposals) };
+  }
+
+  if (q.includes('who are you')) {
+    return { answer: 'I am the TaskPro assistant. I can answer questions about projects, proposals, and system totals.' };
+  }
+  if (q.includes('what can this system do') || q.includes('system capabilities')) {
+    return { answer: 'This system manages proposals, projects, budgets, tasks, reports, and communications across all roles.' };
+  }
+  if (q.includes('completion rate')) {
+    return { answer: `Completion rate is ${completedRate}% based on current project statuses.` };
+  }
+  if (q.includes('top project status') || q.includes('top statuses')) {
+    return { answer: `Top project status is ${topStatusLabel} (${statusCount[topStatusKey] || 0} projects).` };
+  }
+  if (q.includes('project names') || q.includes('project list')) {
+    const names = searchableProjects.map(p => p.title).filter(Boolean).slice(0, 8);
+    return { answer: names.length ? `Projects: ${names.join(', ')}` : 'No projects found.' };
+  }
+  if (q.includes('proposal names') || q.includes('proposal list')) {
+    const names = searchableProposals.map(p => p.title).filter(Boolean).slice(0, 8);
+    return { answer: names.length ? `Proposals: ${names.join(', ')}` : 'No proposals found.' };
+  }
+  if (q.includes('ongoing projects')) {
+    return { answer: `There are ${statusCount.ongoing || 0} ongoing projects.` };
+  }
+
+  // ...existing code...
+
+  const municipalityMatch = q.match(/in\s+([a-z\s-]{3,})/i);
+  const municipalityFromPhrase = municipalityMatch ? municipalityMatch[1].trim().toLowerCase() : null;
+  const municipalityFromKnownList = detectMunicipalityInQuestion(q);
+  const municipalityQuery = municipalityFromKnownList || municipalityFromPhrase;
+
+  if (municipalityQuery) {
+    const matchedProjectEntry = Object.entries(municipalityCount).find(([name]) => name.includes(municipalityQuery));
+    const matchedProposalEntry = Object.entries(proposalMunicipalityCount).find(([name]) => name.includes(municipalityQuery));
+    let linkHtml = '';
+    if (matchedProjectEntry) linkHtml += linkTo('Projects in ' + formatTitleCase(matchedProjectEntry[0]), moduleLinks.projects + '?municipality=' + encodeURIComponent(matchedProjectEntry[0]));
+    if (matchedProposalEntry) linkHtml += linkTo('Proposals in ' + formatTitleCase(matchedProposalEntry[0]), moduleLinks.proposals + '?municipality=' + encodeURIComponent(matchedProposalEntry[0]));
+    if (q.includes('proposal')) {
+      if (matchedProposalEntry) {
+        const [name, count] = matchedProposalEntry;
+        return { answer: `There are ${count} proposals in ${formatTitleCase(name)}.`, linkHtml };
+      }
+      return { answer: `No matching proposal municipality was found for "${question}".`, linkHtml };
+    }
+    if (q.includes('project')) {
+      if (matchedProjectEntry) {
+        const [name, count] = matchedProjectEntry;
+        return { answer: `There are ${count} projects in ${formatTitleCase(name)}.`, linkHtml };
+      }
+      return { answer: `No matching project municipality was found for "${question}".`, linkHtml };
+    }
+    if (matchedProjectEntry || matchedProposalEntry) {
+      const projectText = matchedProjectEntry ? `${matchedProjectEntry[1]} projects` : '0 projects';
+      const proposalText = matchedProposalEntry ? `${matchedProposalEntry[1]} proposals` : '0 proposals';
+      const displayName = formatTitleCase((matchedProjectEntry?.[0]) || (matchedProposalEntry?.[0]) || municipalityQuery);
+      return { answer: `${displayName}: ${projectText} and ${proposalText}.`, linkHtml };
+    }
+    return { answer: `No matching municipality was found for "${question}" in the current dataset.`, linkHtml };
+  }
+
+
+  const projectByName = findProjectByName(q);
+  if (projectByName) {
+    const fundsText = projectByName.funds ? `₱${Number(projectByName.funds).toLocaleString()}` : 'N/A';
+    let linkHtml = linkTo('Project Details', moduleLinks.projects + '?title=' + encodeURIComponent(projectByName.title));
+    return { answer: `${projectByName.title || 'Selected project'} is ${formatTitleCase(projectByName.status)} in ${projectByName.municipality || 'Unknown municipality'}, ${projectByName.province || 'Unknown province'}. Beneficiary: ${projectByName.beneficiary || 'N/A'}, Proponent: ${projectByName.proponent || 'N/A'}, Funds: ${fundsText}.`, linkHtml };
+  }
+
+  const proposalByName = findProposalByName(q);
+  if (proposalByName) {
+    const amountText = proposalByName.proposedAmount ? `₱${Number(proposalByName.proposedAmount).toLocaleString()}` : 'N/A';
+    let linkHtml = linkTo('Proposal Details', moduleLinks.proposals + '?title=' + encodeURIComponent(proposalByName.title));
+    return { answer: `${proposalByName.title || 'Selected proposal'} is ${formatTitleCase(proposalByName.status.replaceAll('_', ' '))} in ${proposalByName.municipality || 'Unknown municipality'}, ${proposalByName.province || 'Unknown province'}. Submitted by: ${proposalByName.submittedBy || 'N/A'}, Proposed Amount: ${amountText}.`, linkHtml };
+  }
+
+  if (q.includes('what can you answer') || q.includes('supported')) {
+    return { answer: 'I can answer totals, names, municipality counts, status summaries, completion metrics, system capabilities, project/proposal/staff/user lookups, and redirect you to the relevant module.' };
+  }
+
+  return { answer: `${buildSystemSnapshotAnswer()} Ask me about a specific project name, municipality, status, or comparison.`, linkHtml: linkTo('Dashboard', moduleLinks.dashboard) };
+}
+
+const assistantPanel = document.getElementById('assistantPanel');
+const assistantFab = document.getElementById('assistantFab');
+const assistantHide = document.getElementById('assistantHide');
+const assistantLog = document.getElementById('gisAssistantLog');
+const assistantInput = document.getElementById('gisAssistantInput');
+const assistantAsk = document.getElementById('gisAssistantAsk');
+const assistantPresets = document.querySelectorAll('#gisAssistantPresets [data-question]');
+const assistantModeToggle = document.getElementById('assistantModeToggle');
+
+let aiEnabled = localStorage.getItem('assistantAiEnabled') !== 'false';
+if (assistantModeToggle) {
+  assistantModeToggle.checked = aiEnabled;
+  assistantModeToggle.addEventListener('change', () => {
+    aiEnabled = assistantModeToggle.checked;
+    localStorage.setItem('assistantAiEnabled', aiEnabled ? 'true' : 'false');
+  });
+}
+
+function setAssistantVisibility(isOpen) {
+  if (!assistantPanel || !assistantFab) return;
+  assistantPanel.classList.toggle('hidden', !isOpen);
+  assistantFab.classList.toggle('hidden', isOpen);
+  localStorage.setItem('assistantOpen', isOpen ? 'true' : 'false');
+}
+
+function resolveFloatingButtonConflict() {
+  const quickHelpFab = document.getElementById('quickHelpFAB');
+  if (quickHelpFab) {
+    quickHelpFab.style.display = 'none';
+    quickHelpFab.setAttribute('aria-hidden', 'true');
+  }
+}
+
+if (assistantFab && assistantHide) {
+  resolveFloatingButtonConflict();
+  const openByDefault = localStorage.getItem('assistantOpen') !== 'false';
+  setAssistantVisibility(openByDefault);
+  assistantFab.addEventListener('click', () => setAssistantVisibility(true));
+  assistantHide.addEventListener('click', () => setAssistantVisibility(false));
+
+  const fabObserver = new MutationObserver(() => resolveFloatingButtonConflict());
+  fabObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+function appendAssistantMessage(role, message, html = false) {
+  if (!assistantLog) return;
+  const msg = document.createElement('div');
+  msg.className = `gis-msg ${role === 'user' ? 'gis-msg-user' : 'gis-msg-ai'}`;
+  if (html) {
+    msg.innerHTML = message;
+  } else {
+    msg.textContent = message;
+  }
+  assistantLog.appendChild(msg);
+  assistantLog.scrollTop = assistantLog.scrollHeight;
+  return msg;
+}
+
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return '';
+}
+
+function buildAiContext() {
+  return {
+    totals: {
+      projects: localSystemFacts.totalProjects,
+      proposals: localSystemFacts.totalProposals,
+      users: localSystemFacts.totalUsers,
+      pending_extensions: localSystemFacts.pendingExtensions
+    },
+    project_status_counts: statusCount,
+    proposal_status_counts: proposalStatusCount,
+    project_municipalities: municipalityCount,
+    proposal_municipalities: proposalMunicipalityCount,
+    top_project_municipality: topMunicipality ? topMunicipality[0] : null,
+    top_project_municipality_count: topMunicipality ? topMunicipality[1] : 0,
+    top_proposal_municipality: topProposalMunicipality ? topProposalMunicipality[0] : null,
+    top_proposal_municipality_count: topProposalMunicipality ? topProposalMunicipality[1] : 0,
+    completion_rate_percent: completedRate,
+    top_project_status: topStatusLabel
+  };
+}
+
+async function requestAiAnswer(question) {
+  if (!assistantPanel || !assistantPanel.dataset.aiUrl) return null;
+  const csrfToken = getCookie('csrftoken');
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
+  try {
+    const response = await fetch(assistantPanel.dataset.aiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({ question, context: buildAiContext() }),
+      signal: controller.signal
+    });
+
+    const data = await response.json();
+    if (!data || !data.ok || !data.answer) {
+      return { answer: null, error: data && data.error ? data.error : 'AI unavailable' };
+    }
+    return { answer: data.answer, error: null };
+  } catch (e) {
+    return { answer: null, error: 'AI request failed' };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function formatAiNotice(errorText) {
+  if (!errorText) return '';
+  const lower = String(errorText).toLowerCase();
+  if (lower.includes('resource_exhausted') || lower.includes('quota') || lower.includes('429')) {
+    return 'Gemini quota exceeded. Please try again later or update your limits.';
+  }
+  if (lower.includes('api key') || lower.includes('api_key')) {
+    return 'AI key missing or invalid.';
+  }
+  return `AI unavailable: ${errorText}`;
+}
+
+async function handleAssistantQuestion(questionText) {
+  const question = (questionText || '').trim();
+  if (!question) return;
+  appendAssistantMessage('user', question);
+  const pending = appendAssistantMessage('ai', 'Thinking...', false);
+  let local = { answer: buildSystemSnapshotAnswer(), linkHtml: '' };
+  let aiError = null;
+  try {
+    local = respondToLocalGISQuestion(question, true) || local;
+  } catch (e) {
+    // Keep fallback snapshot response
+  }
+
+  try {
+    if (aiEnabled) {
+      const aiResult = await requestAiAnswer(question);
+      if (aiResult && aiResult.answer) {
+        pending.textContent = aiResult.answer;
+        return;
+      }
+      aiError = aiResult && aiResult.error ? aiResult.error : null;
+    }
+  } catch (e) {
+    // Fall back to local response
+  }
+
+  if (local.linkHtml) {
+    const aiNotice = aiError ? formatAiNotice(aiError) : '';
+    const note = aiNotice ? `<br><span class="text-[11px] text-slate-400">${escapeHtml(aiNotice)}</span>` : '';
+    if (aiError) console.warn('AI assistant unavailable:', aiError);
+    pending.innerHTML = local.answer + '<br>' + local.linkHtml + note;
+  } else {
+    const aiNotice = aiError ? formatAiNotice(aiError) : '';
+    if (aiError) console.warn('AI assistant unavailable:', aiError);
+    pending.textContent = aiNotice ? `${local.answer} (${aiNotice})` : local.answer;
+  }
+}
+
+if (assistantAsk && assistantInput) {
+  assistantAsk.addEventListener('click', () => {
+    handleAssistantQuestion(assistantInput.value);
+    assistantInput.value = '';
+    assistantInput.focus();
+  });
+  assistantInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      assistantAsk.click();
+    }
+  });
+}
+
+if (assistantPresets && assistantPresets.length) {
+  assistantPresets.forEach(btn => {
+    btn.addEventListener('click', () => {
+      handleAssistantQuestion(btn.getAttribute('data-question'));
+    });
+  });
+}
+
+function buildQuickAnswers() {
+  const container = document.getElementById('gisAssistantPresets');
+  if (!container) return;
+
+  const suggestions = [];
+  if (topMunicipality?.[0]) {
+    suggestions.push(`How many projects in ${formatTitleCase(topMunicipality[0])}?`);
+  }
+  if (topProposalMunicipality?.[0]) {
+    suggestions.push(`How many proposals in ${formatTitleCase(topProposalMunicipality[0])}?`);
+  }
+  suggestions.push('How many ongoing projects?');
+  suggestions.push('What is the completion rate?');
+  suggestions.push('Show me project names');
+  suggestions.push('Show me proposal names');
+  suggestions.push('What are the top project statuses?');
+
+  suggestions.forEach(text => {
+    const exists = Array.from(container.querySelectorAll('[data-question]'))
+      .some(btn => (btn.getAttribute('data-question') || '').toLowerCase() === text.toLowerCase());
+    if (exists) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'gis-assistant-chip';
+    btn.setAttribute('data-question', text);
+    btn.textContent = text;
+    btn.addEventListener('click', () => handleAssistantQuestion(text));
+    container.appendChild(btn);
+  });
+}
+
+buildQuickAnswers();
+
+const baseMaps = { "OpenStreetMap": osm, "ESRI Satellite": esriSat };
+const overlayMaps = { "New": layers.new, "Ongoing": layers.ongoing, "Completed": layers.completed, "Terminated": layers.terminated };
+L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
+Object.values(layers).forEach(g => map.addLayer(g));
+
+// KD-tree + Haversine functions
+function haversineDistanceMeters(lat1, lon1, lat2, lon2) {
+  const toRad = v => v * Math.PI / 180, R = 6371000;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+function buildKDTree(points, depth=0) {
+  if (!points.length) return null;
+  const axis = depth % 2; 
+  points.sort((a,b)=>a.point[axis]-b.point[axis]);
+  const median = Math.floor(points.length/2);
+  return { point: points[median].point, data: points[median].data, markerRef: points[median].markerRef, axis,
+           left: buildKDTree(points.slice(0, median), depth+1),
+           right: buildKDTree(points.slice(median+1), depth+1) };
+}
+function nearestNeighbors(root, target, N) {
+  const best = [];
+  
+  function pushBest(item) {
+    best.push(item);
+    best.sort((a, b) => a.dist - b.dist); // Sort ASCENDING (closest first)
+    if (best.length > N) best.pop(); // Remove the last (furthest)
+  }
+  
+  function getMaxDist() {
+    return best.length > 0 ? best[best.length - 1].dist : Infinity;
+  }
+  
+  function recurse(node) {
+    if (!node) return;
+    
+    const d = haversineDistanceMeters(target[0], target[1], node.point[0], node.point[1]);
+    
+    if (best.length < N || d < getMaxDist()) {
+      pushBest({ dist: d, node });
+    }
+    
+    const diff = target[node.axis] - node.point[node.axis];
+    const first = diff <= 0 ? node.left : node.right;
+    const second = diff <= 0 ? node.right : node.left;
+    
+    recurse(first);
+    
+    // Only explore the other branch if it could contain closer points
+    if (best.length < N || Math.abs(diff) * 111000 < getMaxDist()) { // 111km per degree approximation
+      recurse(second);
+    }
+  }
+  
+  recurse(root);
+  return best; // Already sorted ascending (closest first)
+}
+const kdTree=buildKDTree(kdPoints.slice()); // Use slice() to avoid mutating original array
+
+// Highlight Nearest
+let highlightLayer=L.layerGroup().addTo(map);
+function clearHighlights(){highlightLayer.clearLayers();document.getElementById('nearestResults').innerHTML='';}
+document.getElementById('clearHighlights').addEventListener('click',clearHighlights);
+
+// Center Biliran control (small pin inside map)
+// Biliran Province bounds (SW corner to NE corner)
+const BILIRAN_BOUNDS = L.latLngBounds(
+  [11.4700, 124.3400],  // Southwest corner
+  [11.7200, 124.6200]   // Northeast corner
+);
+
+const CenterControl = L.Control.extend({
+  options: { position: 'topleft' },
+  onAdd: function(map) {
+    const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+    const button = L.DomUtil.create('a', '', container);
+    button.href = '#';
+    button.title = 'Center on Biliran Province';
+    button.innerHTML = '<span style="font-size:18px;">📍</span>';
+    button.style.cssText = 'display:flex;align-items:center;justify-content:center;width:34px;height:34px;background:#fff;cursor:pointer;';
+    L.DomEvent.disableClickPropagation(button);
+    L.DomEvent.on(button, 'click', function(e) {
+      L.DomEvent.preventDefault(e);
+      map.fitBounds(BILIRAN_BOUNDS, { padding: [20, 20] });
+    });
+    return container;
+  }
+});
+map.addControl(new CenterControl());
+
+function highlightNearest(list){
+  clearHighlights();const results=[];
+  list.forEach((item,idx)=>{
+    const p=item.node.data;
+    L.circle([p.latitude,p.longitude],{radius:Math.max(40,Math.min(1500,item.dist*0.25)),color:idx===0?'#d97706':'#2563eb',weight:2,fillOpacity:0.08}).addTo(highlightLayer);
+    const numberedIcon=L.divIcon({html:`<div style="background:${idx===0?'#d97706':'#2563eb'};color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;">${idx+1}</div>`,className:''});
+    const numberedMarker = L.marker([p.latitude,p.longitude],{icon:numberedIcon}).addTo(highlightLayer);
+    // Click on numbered marker opens the original project marker popup
+    numberedMarker.on('click', function() {
+      item.node.markerRef.openPopup();
+    });
+    results.push({rank:idx+1,title:p.title,municipality:p.municipality,distance_m:Math.round(item.dist)});
+  });
+  const nearestResultsEl = document.getElementById('nearestResults');
+  if (nearestResultsEl) {
+    nearestResultsEl.innerHTML = results.length
+      ? results.map(result => `
+          <div class="admin-surface-soft px-2.5 py-2 animate-[fadeIn_.2s_ease]">
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-slate-700 truncate">#${result.rank} ${escapeHtml(result.title || 'Untitled Project')}</p>
+                <p class="text-[11px] text-slate-500 truncate">${escapeHtml(result.municipality || 'Unknown municipality')}</p>
+              </div>
+              <span class="text-[11px] font-semibold text-[#0072CE] whitespace-nowrap">${result.distance_m} m</span>
+            </div>
+          </div>
+        `).join('')
+      : '<p class="text-xs text-slate-400 text-center py-2">No nearby projects found.</p>';
+  }
+}
+
+map.on('click',e=>{
+  const N=parseInt(document.getElementById('nearestCount').value,10)||5;
+  const nearest=nearestNeighbors(kdTree,[e.latlng.lat,e.latlng.lng],N);
+  highlightNearest(nearest);
+});
+(function fitMap(){
+  const pts=kdPoints.map(p=>p.point);
+  if(pts.length)map.fitBounds(L.latLngBounds(pts).pad(0.15));
+  else map.setView(BILIRAN_CENTER,11.5);
+})();
+
+// Arrow key navigation for map
+const PAN_DISTANCE = 100; // pixels to pan per key press
+
+document.addEventListener('keydown', function(e) {
+    // Only handle arrow keys when map is focused or when no input/textarea is focused
+    const activeElement = document.activeElement;
+    const isInputFocused = activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.contentEditable === 'true';
+    
+    if (!isInputFocused) {
+        switch(e.key) {
+            case 'ArrowUp':
+                e.preventDefault();
+                map.panBy([0, -PAN_DISTANCE]);
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                map.panBy([0, PAN_DISTANCE]);
+                break;
+            case 'ArrowLeft':
+                e.preventDefault();
+                map.panBy([-PAN_DISTANCE, 0]);
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                map.panBy([PAN_DISTANCE, 0]);
+                break;
+            case 'Enter':
+                e.preventDefault();
+                map.zoomIn();
+                break;
+            case ' ':
+                e.preventDefault();
+                map.zoomOut();
+                break;
+        }
+    }
+});
+
+// Focus map when clicked to enable keyboard navigation
+document.getElementById('map').addEventListener('click', function() {
+    this.focus();
+});
+
+function escapeHtml(u){if(!u)return '';return String(u).replace(/[&<>"]/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));}
+} catch(e) { console.error('Map initialization error:', e); }
+</script>
+
+<!-- CHART.JS LOGIC -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+    const dashboardCharts = [];
+    const isDarkMode = () => document.documentElement.classList.contains('dark');
+
+    const applyChartTheme = () => {
+      const adminDarkMode = isDarkMode();
+      Chart.defaults.color = adminDarkMode ? '#e2e8f0' : '#475569';
+      Chart.defaults.borderColor = adminDarkMode ? 'rgba(148, 163, 184, 0.22)' : 'rgba(100, 116, 139, 0.22)';
+    };
+
+    applyChartTheme();
+
+    const interactiveChartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 650,
+        easing: 'easeOutQuart'
+      },
+      hover: {
+        animationDuration: 280,
+        mode: 'nearest',
+        intersect: true
+      },
+      interaction: {
+        mode: 'nearest',
+        intersect: true
+      },
+      plugins: {
+        tooltip: {
+          backgroundColor: isDarkMode() ? 'rgba(15, 23, 42, 0.96)' : 'rgba(15, 23, 42, 0.88)',
+          titleColor: '#f8fafc',
+          bodyColor: '#e2e8f0',
+          borderColor: 'rgba(148, 163, 184, 0.35)',
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 10,
+          displayColors: true
+        }
+      },
+      onHover: (event, activeEls) => {
+        const canvas = event?.native?.target;
+        if (canvas) {
+          canvas.style.cursor = activeEls && activeEls.length ? 'pointer' : 'default';
+        }
+      }
+    };
+
+    const withInteractiveOptions = (options) => {
+      const merged = {
+        ...interactiveChartOptions,
+        ...options,
+        plugins: {
+          ...interactiveChartOptions.plugins,
+          ...(options?.plugins || {})
+        }
+      };
+      return merged;
+    };
+
+        // ==========================================
+        // DATA PARSING
+        // ==========================================
+        const labelsRaw = "{{ project_status_labels|escapejs }}";
+        const labelsData = labelsRaw ? JSON.parse(labelsRaw) : [];
+
+        const valuesRaw = "{{ project_status_values|escapejs }}";
+        const valuesData = valuesRaw ? JSON.parse(valuesRaw) : [];
+
+    const spentVal = parseFloat("{{ total_spent|floatformat:2|default:'0' }}");
+    const remainingVal = parseFloat("{{ total_remaining|floatformat:2|default:'0' }}");
+
+        // User Roles Data
+        const userRolesLabels = JSON.parse("{{ user_role_labels|escapejs }}" || "[]");
+        const userRolesValues = JSON.parse("{{ user_role_values|escapejs }}" || "[]");
+
+        // Proposal Status Data
+        const propStatusLabels = JSON.parse("{{ proposal_status_labels|escapejs }}" || "[]");
+        const propStatusValues = JSON.parse("{{ proposal_status_values|escapejs }}" || "[]");
+
+        // ==========================================
+        // CHART 1: PROJECT STATUS (Bar)
+        // ==========================================
+        const ctxProj = document.getElementById('dashboardProjectChart').getContext('2d');
+        dashboardCharts.push(new Chart(ctxProj, {
+            type: 'bar',
+            data: {
+                labels: labelsData,
+                datasets: [{
+                    label: 'Projects',
+                    data: valuesData,
+                    backgroundColor: ['#F59E0B', '#3B82F6', '#10B981', '#EF4444'],
+              hoverBackgroundColor: ['#d97706', '#2563eb', '#059669', '#dc2626'],
+              borderColor: '#ffffff',
+              borderWidth: 1,
+                    borderRadius: 6,
+                }]
+            },
+          options: withInteractiveOptions({
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                    x: { grid: { display: false } }
+                }
+          })
+        }));
+
+        // ==========================================
+        // CHART 2: TASK COMPLETION (Doughnut)
+        // ==========================================
+        const taskPending = parseInt("{{ task_pending|default:0 }}");
+        const taskInProgress = parseInt("{{ task_in_progress|default:0 }}");
+        const taskCompleted = parseInt("{{ task_completed|default:0 }}");
+        const taskOverdue = parseInt("{{ task_overdue|default:0 }}");
+        
+        const ctxTask = document.getElementById('taskCompletionChart').getContext('2d');
+        dashboardCharts.push(new Chart(ctxTask, {
+            type: 'doughnut',
+            data: {
+                labels: ['Pending', 'In Progress', 'Completed', 'Overdue'],
+                datasets: [{
+                    data: [taskPending, taskInProgress, taskCompleted, taskOverdue],
+                    backgroundColor: ['#FCD34D', '#3B82F6', '#10B981', '#EF4444'],
+              hoverOffset: 14,
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+          options: withInteractiveOptions({
+                plugins: {
+                    legend: { position: 'right' }
+                }
+          })
+        }));
+
+        // ==========================================
+        // CHART 3: USER ROLES (Doughnut)
+        // ==========================================
+        const ctxUser = document.getElementById('userRolesChart').getContext('2d');
+        dashboardCharts.push(new Chart(ctxUser, {
+            type: 'doughnut',
+            data: {
+                labels: userRolesLabels,
+                datasets: [{
+                    data: userRolesValues,
+                    backgroundColor: ['#6366F1', '#EC4899', '#8B5CF6', '#14B8A6'],
+              hoverOffset: 14,
+                    borderWidth: 1
+                }]
+            },
+          options: withInteractiveOptions({
+                plugins: {
+                    legend: { position: 'right' }
+                }
+          })
+        }));
+
+        // ==========================================
+        // CHART 4: PROPOSAL STATUS (Pie)
+        // ==========================================
+        const ctxProp = document.getElementById('proposalStatusChart').getContext('2d');
+        dashboardCharts.push(new Chart(ctxProp, {
+            type: 'pie',
+            data: {
+                labels: propStatusLabels,
+                datasets: [{
+                    data: propStatusValues,
+                    backgroundColor: ['#FCD34D', '#34D399', '#F87171', '#60A5FA', '#9CA3AF'],
+              hoverOffset: 14,
+                    borderWidth: 1
+                }]
+            },
+          options: withInteractiveOptions({
+                plugins: {
+                    legend: { position: 'right' }
+                }
+          })
+        }));
+
+        // ==========================================
+        // CHART 5: PROPOSALS TREND (Line)
+        // ==========================================
+        const proposalsTrendLabels = JSON.parse("{{ proposals_month_labels|escapejs }}" || "[]");
+        const proposalsTrendValues = JSON.parse("{{ proposals_month_values|escapejs }}" || "[]");
+        
+        const ctxPropTrend = document.getElementById('proposalsTrendChart');
+        if (ctxPropTrend) {
+          dashboardCharts.push(new Chart(ctxPropTrend.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: proposalsTrendLabels,
+                    datasets: [{
+                        label: 'Proposals',
+                        data: proposalsTrendValues,
+                        borderColor: '#10B981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 3,
+                        pointHoverRadius: 7,
+                        pointHoverBackgroundColor: '#047857',
+                        pointHoverBorderColor: '#ffffff',
+                        pointHoverBorderWidth: 2
+                    }]
+                },
+                    options: withInteractiveOptions({
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                        x: { grid: { display: false } }
+                    }
+                    })
+                  }));
+        }
+
+        // ==========================================
+        // CHART 6: EXTENSION REQUESTS STATUS (Doughnut)
+        // ==========================================
+        const extStatusLabels = JSON.parse("{{ extension_status_labels|escapejs }}" || "[]");
+        const extStatusValues = JSON.parse("{{ extension_status_values|escapejs }}" || "[]");
+        
+        const ctxExtStatus = document.getElementById('extensionStatusChart');
+        if (ctxExtStatus) {
+          dashboardCharts.push(new Chart(ctxExtStatus.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: extStatusLabels,
+                    datasets: [{
+                        data: extStatusValues,
+                        backgroundColor: ['#FBBF24', '#10B981', '#EF4444'],
+                hoverOffset: 14,
+                        borderWidth: 1
+                    }]
+                },
+            options: withInteractiveOptions({
+                    plugins: {
+                        legend: { position: 'right' }
+                    }
+            })
+          }));
+        }
+
+        const refreshDashboardLayout = () => {
+          const mapInstance = window.adminDashboardMap;
+          if (mapInstance && typeof mapInstance.invalidateSize === 'function') {
+            setTimeout(() => mapInstance.invalidateSize(), 180);
+          }
+          dashboardCharts.forEach((chart) => {
+            if (chart && typeof chart.resize === 'function') {
+              chart.resize();
+              chart.update('none');
+            }
+          });
+        };
+
+        const refreshChartTheme = () => {
+          applyChartTheme();
+          dashboardCharts.forEach((chart) => {
+            if (!chart || !chart.options) return;
+            const dark = isDarkMode();
+            if (chart.options.plugins && chart.options.plugins.tooltip) {
+              chart.options.plugins.tooltip.backgroundColor = dark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(15, 23, 42, 0.88)';
+            }
+            chart.update('none');
+          });
+        };
+
+        window.addEventListener('resize', refreshDashboardLayout);
+        window.addEventListener('taskpro:sidebar-toggled', refreshDashboardLayout);
+        window.addEventListener('taskpro:theme-toggled', refreshChartTheme);
+
+        const htmlObserver = new MutationObserver(() => {
+          refreshChartTheme();
+        });
+        htmlObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    });
+</script>
+
+<style>
+  @media (max-width: 1024px) {
+    #map { height: 420px !important; }
+  }
+  .legend-dot {
+    display:inline-block;width:14px;height:14px;border-radius:50%;margin-right:6px;
+  }
+  .legend-line {
+    display:inline-block;width:18px;height:0;border-top:2px solid;margin-right:6px;
+  }
+</style>
+    <!-- Module help for Administrator Dashboard (copied into header help by base JS) -->
+    <div id="module-help" style="display:none;">
+        <h3>Dashboard — quick tour</h3>
+        <p>Here's what you can do on this page:</p>
+        <ul>
+            <li>📌 <strong>At-a-glance numbers</strong> — see totals for users, proposals, and projects.</li>
+            <li>🗺️ <strong>Map</strong> — view where projects are located on the map.</li>
+            <li>📊 <strong>Charts</strong> — simple graphs that show trends and status breakdowns.</li>
+        </ul>
+        <p>Tip: Turn on <em>Simple Mode</em> to hide extra charts and focus on the basics.</p>
+    </div>
+
+    {% block module_help %}{% endblock %}
+
+{% endblock %}

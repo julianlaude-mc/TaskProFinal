@@ -1,0 +1,242 @@
+{% extends 'staff/base.html' %}
+{% load static %}
+{% block title %}Account Settings{% endblock %}
+
+{% block page_title %}Profile Settings{% endblock %}
+
+{% block content %}
+<!-- Alpine.js -->
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js" defer></script>
+<link rel="stylesheet" href="https://unpkg.com/cropperjs@1.6.2/dist/cropper.min.css">
+
+<div class="w-full bg-white p-8 rounded-2xl shadow-md"
+     x-data="{ openModal: false }">
+
+    <h2 class="text-2xl font-semibold mb-6">Edit Profile</h2>
+
+    <!-- Flash Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 p-3 rounded-lg text-white 
+                {% if message.tags == 'success' %}
+                    bg-green-500
+                {% elif message.tags == 'error' %}
+                    bg-red-500
+                {% elif message.tags == 'warning' %}
+                    bg-yellow-500
+                {% else %}
+                    bg-blue-500
+                {% endif %}
+            ">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data" class="space-y-6">
+        {% csrf_token %}
+
+        <!-- Profile Picture -->
+        <div class="flex flex-col sm:flex-row items-center gap-6">
+            {% if user.profile_picture %}
+                <img src="{{ user.profile_picture.url }}" alt="Profile" class="w-24 h-24 rounded-full object-cover border" id="profilePreview" data-default-avatar="{% static 'images/default-avatar.png' %}">
+            {% else %}
+                <img src="{% static 'images/default-avatar.png' %}" alt="Profile" class="w-24 h-24 rounded-full object-cover border" id="profilePreview" data-default-avatar="{% static 'images/default-avatar.png' %}">
+            {% endif %}
+            <div class="w-full sm:w-auto">
+                <label class="block font-medium text-gray-700">Change Profile Picture</label>
+                <input type="file" name="profile_picture" id="avatarInput" class="mt-1 w-full text-sm text-gray-500" accept="image/*">
+                <input type="hidden" name="remove_profile_picture" id="removeProfilePicture" value="false">
+                <input type="hidden" name="cropped_profile_picture" id="croppedProfilePicture">
+                {% if user.profile_picture %}
+                <button type="button" id="removeProfilePictureBtn" class="mt-2 text-xs text-red-600 hover:text-red-700">Remove photo</button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Name Fields -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
+            <div>
+                <label class="block font-medium text-gray-700">First Name</label>
+                <input type="text" name="first_name" value="{{ user.first_name }}" class="w-full p-2 border rounded-lg">
+            </div>
+            <div>
+                <label class="block font-medium text-gray-700">Middle Name</label>
+                <input type="text" name="middle_name" value="{{ user.middle_name }}" class="w-full p-2 border rounded-lg">
+            </div>
+            <div>
+                <label class="block font-medium text-gray-700">Last Name</label>
+                <input type="text" name="last_name" value="{{ user.last_name }}" class="w-full p-2 border rounded-lg">
+            </div>
+            <div>
+                <label class="block font-medium text-gray-700">Suffix</label>
+                <input type="text" name="suffix" value="{{ user.suffix }}" class="w-full p-2 border rounded-lg">
+            </div>
+        </div>
+
+        <!-- Sex, Civil Status, Contact, Email -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
+            <div>
+                <label class="block font-medium text-gray-700">Sex</label>
+                <select name="sex" class="w-full p-2 border rounded-lg">
+                    <option value="">Select Sex</option>
+                    <option value="male" {% if user.sex == "male" %}selected{% endif %}>Male</option>
+                    <option value="female" {% if user.sex == "female" %}selected{% endif %}>Female</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-medium text-gray-700">Civil Status</label>
+                <select name="civil_status" class="w-full p-2 border rounded-lg">
+                    <option value="">Select Status</option>
+                    <option value="single" {% if user.civil_status == "single" %}selected{% endif %}>Single</option>
+                    <option value="married" {% if user.civil_status == "married" %}selected{% endif %}>Married</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-medium text-gray-700">Contact Number</label>
+                <input type="text" name="contact_number" value="{{ user.contact_number }}" class="w-full p-2 border rounded-lg">
+            </div>
+
+            <div>
+                <label class="block font-medium text-gray-700">Email</label>
+                <input type="email" name="email" value="{{ user.email }}" class="w-full p-2 border rounded-lg">
+            </div>
+        </div>
+
+        <!-- Address -->
+        <div>
+            <label class="block font-medium text-gray-700">Address</label>
+            <textarea name="address" class="w-full p-2 border rounded-lg h-15">{{ user.address }}</textarea>
+        </div>
+
+        <div class="flex justify-end gap-4">
+            <button type="button"
+                @click="openModal = true"
+                class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg transition">
+                Change Password
+            </button>
+            <button type="submit"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
+                Save Changes
+            </button>
+        </div>
+    </form>
+
+    <div id="avatarCropModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="bg-white rounded-xl shadow-lg p-4 w-full max-w-lg">
+            <h3 class="text-lg font-semibold mb-3">Adjust Profile Picture</h3>
+            <div class="max-h-[60vh] overflow-hidden rounded-lg border">
+                <img id="avatarCropImage" alt="Crop" class="max-w-full">
+            </div>
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" id="avatarCropCancel" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
+                <button type="button" id="avatarCropApply" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div
+        x-show="openModal"
+        x-transition
+        x-cloak
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+    >
+        <div
+            @click.away="openModal = false"
+            class="bg-white rounded-xl shadow-lg p-6 w-full max-w-md"
+        >
+            <h3 class="text-xl font-semibold mb-4">Change Password</h3>
+            <form method="POST" action="{% url 'staff_change_password_url' %}" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block font-medium text-gray-700">Old Password</label>
+                    <input type="password" name="old_password" class="w-full p-2 border rounded-lg" required>
+                </div>
+                <div>
+                    <label class="block font-medium text-gray-700">New Password</label>
+                    <input type="password" name="new_password1" class="w-full p-2 border rounded-lg" required>
+                </div>
+                <div>
+                    <label class="block font-medium text-gray-700">Confirm New Password</label>
+                    <input type="password" name="new_password2" class="w-full p-2 border rounded-lg" required>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-4">
+                    <button type="button"
+                        @click="openModal = false"
+                        class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
+                        Update Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/cropperjs@1.6.2/dist/cropper.min.js"></script>
+<script>
+const avatarInput = document.getElementById('avatarInput');
+const cropModal = document.getElementById('avatarCropModal');
+const cropImage = document.getElementById('avatarCropImage');
+const cropApply = document.getElementById('avatarCropApply');
+const cropCancel = document.getElementById('avatarCropCancel');
+const previewImg = document.getElementById('profilePreview');
+const removeBtn = document.getElementById('removeProfilePictureBtn');
+const removeInput = document.getElementById('removeProfilePicture');
+const croppedInput = document.getElementById('croppedProfilePicture');
+let cropper = null;
+
+function closeCropper() {
+    cropModal.classList.add('hidden');
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+}
+
+if (avatarInput) {
+    avatarInput.addEventListener('change', function() {
+        const file = this.files && this.files[0];
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        cropImage.src = url;
+        cropModal.classList.remove('hidden');
+        if (cropper) cropper.destroy();
+        cropper = new Cropper(cropImage, { aspectRatio: 1, viewMode: 1, autoCropArea: 1 });
+    });
+}
+
+if (cropApply) {
+    cropApply.addEventListener('click', function() {
+        if (!cropper) return;
+        const canvas = cropper.getCroppedCanvas({ width: 300, height: 300 });
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        croppedInput.value = dataUrl;
+        if (previewImg) previewImg.src = dataUrl;
+        if (removeInput) removeInput.value = 'false';
+        closeCropper();
+    });
+}
+
+if (cropCancel) {
+    cropCancel.addEventListener('click', closeCropper);
+}
+
+if (removeBtn) {
+    removeBtn.addEventListener('click', function() {
+        if (removeInput) removeInput.value = 'true';
+        if (croppedInput) croppedInput.value = '';
+        if (previewImg && previewImg.dataset.defaultAvatar) {
+            previewImg.src = previewImg.dataset.defaultAvatar;
+        }
+    });
+}
+</script>
+{% endblock %}

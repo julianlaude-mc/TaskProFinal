@@ -1,0 +1,642 @@
+{% extends 'administrator/base.html' %}
+{% load static %}
+
+{% block title %}Calendar - DOST Admin{% endblock %}
+
+{% block page-title %}
+<div class="flex items-center gap-2">
+    <span class="material-icons text-blue-600">calendar_month</span>
+    Calendar
+</div>
+{% endblock %}
+
+{% block styles %}
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet' />
+<style>
+    .fc-event {
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        border: none !important;
+    }
+    .fc-event:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .fc-toolbar-title {
+        font-size: 1.5rem !important;
+        font-weight: 700 !important;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .fc-button {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 8px 16px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease !important;
+    }
+    .fc-button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 4px 12px rgba(59,130,246,0.4) !important;
+    }
+    .fc-button-active {
+        background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+    }
+    .fc-day-today {
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+    }
+    .fc-daygrid-day:hover {
+        background: #f8fafc;
+    }
+    .event-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        padding: 6px 12px;
+        background: #f8fafc;
+        border-radius: 20px;
+        transition: all 0.2s ease;
+    }
+    .legend-item:hover {
+        background: #e2e8f0;
+        transform: translateY(-2px);
+    }
+    .legend-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    
+    /* Event Modal Styles */
+    .event-modal-overlay {
+        backdrop-filter: blur(8px);
+        animation: fadeIn 0.2s ease;
+    }
+    .event-modal-content {
+        animation: slideIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(-30px) scale(0.95); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .event-type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: capitalize;
+    }
+    .event-detail-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .event-detail-row:last-child {
+        border-bottom: none;
+    }
+    .event-detail-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .delete-btn {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        transition: all 0.3s ease;
+    }
+    .delete-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(239,68,68,0.4);
+    }
+    .edit-btn {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        transition: all 0.3s ease;
+    }
+    .edit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(245,158,11,0.4);
+    }
+    
+    /* Dark mode support */
+    .dark .fc-toolbar-title {
+        background: linear-gradient(135deg, #60a5fa, #a78bfa);
+        -webkit-background-clip: text;
+        background-clip: text;
+    }
+    .dark .fc-day-today {
+        background: linear-gradient(135deg, #1e3a5f 0%, #1e1b4b 100%) !important;
+    }
+    .dark .legend-item {
+        background: #1e293b;
+        color: #e2e8f0;
+    }
+    .dark .legend-item:hover {
+        background: #334155;
+    }
+    .dark .event-detail-row {
+        border-color: #334155;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb (visible in Simple Mode) -->
+<nav class="breadcrumb">
+    <a href="{% url 'administrator_dashboard_url' %}">Dashboard</a>
+    <span class="separator">›</span>
+    <span class="current">Calendar</span>
+</nav>
+
+<div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+    <!-- Header with Add Event Button -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-gray-800">Project & Task Calendar</h2>
+            <p class="text-sm text-gray-500">View all deadlines, tasks, and events in one place</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="openAddEventModal()" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
+                    data-tooltip="Add a new event to the calendar">
+                <span class="material-icons">add</span>
+                Add Event
+            </button>
+        </div>
+    </div>
+
+    <!-- Event Legend -->
+    <div class="event-legend bg-gray-50 p-4 rounded-lg mb-6">
+        <div class="legend-item">
+            <span class="legend-dot" style="background-color: #ef4444"></span>
+            <span>Project Deadlines</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot" style="background-color: #3b82f6"></span>
+            <span>Tasks (Pending)</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot" style="background-color: #10b981"></span>
+            <span>Tasks (Completed)</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot" style="background-color: #8b5cf6"></span>
+            <span>Meetings</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot" style="background-color: #f59e0b"></span>
+            <span>Reminders</span>
+        </div>
+    </div>
+
+    <!-- Calendar Container -->
+    <div id="calendar"></div>
+</div>
+
+<!-- Add Event Modal -->
+<div id="addEventModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-gray-800">Add New Event</h3>
+            <button onclick="closeAddEventModal()" class="text-gray-400 hover:text-gray-600">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        
+        <form action="{% url 'administrator_calendar_event_add' %}" method="POST">
+            {% csrf_token %}
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Event Title *</label>
+                    <input type="text" name="title" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea name="description" rows="2"
+                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
+                        <input type="date" name="start_date" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                        <input type="date" name="end_date"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
+                        <select name="event_type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="task">Task</option>
+                            <option value="deadline">Deadline</option>
+                            <option value="milestone">Milestone</option>
+                            <option value="meeting">Meeting</option>
+                            <option value="reminder">Reminder</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                        <select name="color" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="#3b82f6">🔵 Blue</option>
+                            <option value="#10b981">🟢 Green</option>
+                            <option value="#f59e0b">🟡 Yellow</option>
+                            <option value="#ef4444">🔴 Red</option>
+                            <option value="#8b5cf6">🟣 Purple</option>
+        
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" name="is_public" id="is_public" class="mr-2">
+                    <label for="is_public" class="text-sm text-gray-700">Make this event visible to all users</label>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 mt-6">
+                <button type="button" onclick="closeAddEventModal()" 
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Add Event
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Event Details Modal -->
+<div id="eventDetailsModal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-50 flex items-center justify-center event-modal-overlay">
+    <div class="event-modal-content bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+        <!-- Modal Header with Color Banner -->
+        <div id="eventModalHeader" class="p-6 text-white relative overflow-hidden">
+            <div class="absolute inset-0 opacity-20">
+                <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <circle cx="80" cy="20" r="40" fill="white"/>
+                    <circle cx="20" cy="80" r="30" fill="white"/>
+                </svg>
+            </div>
+            <div class="relative z-10">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-3">
+                        <div id="eventModalIconBg" class="w-14 h-14 rounded-xl bg-white bg-opacity-20 flex items-center justify-center">
+                            <span id="eventModalIcon" class="material-icons text-3xl">event</span>
+                        </div>
+                        <div>
+                            <h3 id="eventModalTitle" class="text-xl font-bold">Event Title</h3>
+                            <span id="eventTypeBadge" class="event-type-badge bg-white bg-opacity-20 mt-2">
+                                <span class="material-icons text-sm">label</span>
+                                <span id="eventTypeText">Type</span>
+                            </span>
+                        </div>
+                    </div>
+                    <button onclick="closeEventDetailsModal()" class="w-10 h-10 rounded-full bg-white bg-opacity-20 hover:bg-opacity-30 flex items-center justify-center transition">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Body -->
+        <div class="p-6">
+            <!-- Date & Time -->
+            <div class="event-detail-row">
+                <div class="event-detail-icon bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400">
+                    <span class="material-icons">calendar_today</span>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Date</p>
+                    <p id="eventModalDate" class="font-semibold text-gray-800 dark:text-gray-200">January 23, 2026</p>
+                </div>
+            </div>
+            
+            <!-- Duration -->
+            <div class="event-detail-row" id="eventDurationRow">
+                <div class="event-detail-icon bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400">
+                    <span class="material-icons">schedule</span>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Duration</p>
+                    <p id="eventModalDuration" class="font-semibold text-gray-800 dark:text-gray-200">1 day</p>
+                </div>
+            </div>
+            
+            <!-- Description (if available) -->
+            <div class="event-detail-row" id="eventDescriptionRow" style="display: none;">
+                <div class="event-detail-icon bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400">
+                    <span class="material-icons">description</span>
+                </div>
+                <div class="flex-1">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Description</p>
+                    <p id="eventModalDescription" class="text-gray-800 dark:text-gray-200">No description provided.</p>
+                </div>
+            </div>
+            
+            <!-- Source Info -->
+            <div class="event-detail-row" id="eventSourceRow">
+                <div class="event-detail-icon bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-400">
+                    <span class="material-icons">info</span>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Source</p>
+                    <p id="eventModalSource" class="font-semibold text-gray-800 dark:text-gray-200">Calendar Event</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Footer with Actions -->
+        <div id="eventModalFooter" class="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <div id="eventActionsLeft">
+                <button id="deleteEventBtn" onclick="confirmDeleteEvent()" class="delete-btn text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-semibold">
+                    <span class="material-icons text-lg">delete</span>
+                    Delete Event
+                </button>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeEventDetailsModal()" class="px-5 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition font-semibold">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteConfirmModal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[60] flex items-center justify-center event-modal-overlay">
+    <div class="event-modal-content bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="p-6 text-center">
+            <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
+                <span class="material-icons text-5xl text-red-600 dark:text-red-400">warning</span>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">Delete Event?</h3>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">Are you sure you want to delete "<span id="deleteEventTitle" class="font-semibold"></span>"? This action cannot be undone.</p>
+            
+            <form id="deleteEventForm" method="POST" class="inline">
+                {% csrf_token %}
+                <div class="flex justify-center gap-3">
+                    <button type="button" onclick="closeDeleteConfirmModal()" class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition font-semibold">
+                        Cancel
+                    </button>
+                    <button type="submit" class="delete-btn text-white px-6 py-3 rounded-xl flex items-center gap-2 font-semibold">
+                        <span class="material-icons text-lg">delete_forever</span>
+                        Yes, Delete
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+<script>
+    // Store current event data for actions
+    let currentEventData = null;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        
+        // Calculate available height for calendar (viewport height minus header/padding)
+        function getCalendarHeight() {
+            const viewportHeight = window.innerHeight;
+            const headerOffset = 350; // Approximate space for header, legend, breadcrumb, toolbar
+            return Math.max(viewportHeight - headerOffset, 400); // Minimum 400px
+        }
+        
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            height: getCalendarHeight(),
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,listWeek'
+            },
+            events: '{% url "administrator_calendar_events_api" %}',
+            eventClick: function(info) {
+                info.jsEvent.preventDefault();
+                openEventDetailsModal(info.event);
+            },
+            dateClick: function(info) {
+                document.querySelector('input[name="start_date"]').value = info.dateStr;
+                openAddEventModal();
+            },
+            editable: false,
+            selectable: true,
+            dayMaxEvents: 3,
+            eventDisplay: 'block',
+            views: {
+                dayGridMonth: {
+                    dayMaxEvents: 3
+                }
+            },
+            eventDidMount: function(info) {
+                // Add tooltip with event title
+                info.el.setAttribute('title', info.event.title);
+            }
+        });
+        calendar.render();
+        
+        // Resize calendar when window resizes
+        window.addEventListener('resize', function() {
+            calendar.setOption('height', getCalendarHeight());
+        });
+    });
+    
+    // Event Type Icons and Colors
+    const eventTypeConfig = {
+        task: { icon: 'task_alt', label: 'Task' },
+        deadline: { icon: 'flag', label: 'Project Deadline' },
+        milestone: { icon: 'stars', label: 'Milestone' },
+        meeting: { icon: 'groups', label: 'Meeting' },
+        reminder: { icon: 'notifications', label: 'Reminder' },
+        default: { icon: 'event', label: 'Event' }
+    };
+    
+    function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        return date.toLocaleDateString('en-US', options);
+    }
+    
+    function calculateDuration(startDate, endDate) {
+        if (!endDate || startDate === endDate) return '1 day';
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays === 1 ? '1 day' : `${diffDays} days`;
+    }
+    
+    function openEventDetailsModal(event) {
+        const modal = document.getElementById('eventDetailsModal');
+        const eventId = event.id;
+        const eventTitle = event.title;
+        const eventStart = event.startStr;
+        const eventEnd = event.endStr || event.startStr;
+        const eventColor = event.backgroundColor || '#3b82f6';
+        const eventType = event.extendedProps?.type || 'default';
+        const eventDescription = event.extendedProps?.description || '';
+        
+        // Store current event data
+        currentEventData = {
+            id: eventId,
+            title: eventTitle,
+            isCustomEvent: !String(eventId).includes('project_') && !String(eventId).includes('task_')
+        };
+        
+        // Set header color
+        document.getElementById('eventModalHeader').style.background = `linear-gradient(135deg, ${eventColor} 0%, ${adjustColor(eventColor, -30)} 100%)`;
+        
+        // Set icon and title
+        const typeConfig = eventTypeConfig[eventType] || eventTypeConfig.default;
+        document.getElementById('eventModalIcon').textContent = typeConfig.icon;
+        document.getElementById('eventModalTitle').textContent = eventTitle.replace(/^[📁✓🔔⭐] /, '');
+        document.getElementById('eventTypeText').textContent = typeConfig.label;
+        
+        // Set date
+        document.getElementById('eventModalDate').textContent = formatDate(eventStart);
+        
+        // Set duration
+        document.getElementById('eventModalDuration').textContent = calculateDuration(eventStart, eventEnd);
+        
+        // Set description if available
+        const descRow = document.getElementById('eventDescriptionRow');
+        if (eventDescription) {
+            document.getElementById('eventModalDescription').textContent = eventDescription;
+            descRow.style.display = 'flex';
+        } else {
+            descRow.style.display = 'none';
+        }
+        
+        // Set source info
+        let sourceText = 'Calendar Event';
+        if (String(eventId).includes('project_')) {
+            sourceText = 'Project Deadline (Auto-generated)';
+        } else if (String(eventId).includes('task_')) {
+            sourceText = 'Task Due Date (Auto-generated)';
+        }
+        document.getElementById('eventModalSource').textContent = sourceText;
+        
+        // Show/hide delete button based on event type
+        const deleteBtn = document.getElementById('deleteEventBtn');
+        const actionsLeft = document.getElementById('eventActionsLeft');
+        if (currentEventData.isCustomEvent) {
+            deleteBtn.style.display = 'flex';
+            actionsLeft.style.display = 'block';
+        } else {
+            deleteBtn.style.display = 'none';
+            actionsLeft.style.display = 'none';
+        }
+        
+        // Show modal
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+    
+    function closeEventDetailsModal() {
+        const modal = document.getElementById('eventDetailsModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        currentEventData = null;
+    }
+    
+    function confirmDeleteEvent() {
+        if (!currentEventData || !currentEventData.isCustomEvent) return;
+        
+        document.getElementById('deleteEventTitle').textContent = currentEventData.title;
+        document.getElementById('deleteEventForm').action = `/administrator/calendar/event/${currentEventData.id}/delete/`;
+        
+        const confirmModal = document.getElementById('deleteConfirmModal');
+        confirmModal.classList.remove('hidden');
+        confirmModal.classList.add('flex');
+    }
+    
+    function closeDeleteConfirmModal() {
+        const confirmModal = document.getElementById('deleteConfirmModal');
+        confirmModal.classList.add('hidden');
+        confirmModal.classList.remove('flex');
+    }
+    
+    // Helper function to adjust color brightness
+    function adjustColor(color, amount) {
+        const clamp = (num) => Math.min(255, Math.max(0, num));
+        
+        // Handle hex color
+        if (color.startsWith('#')) {
+            let hex = color.slice(1);
+            if (hex.length === 3) {
+                hex = hex.split('').map(c => c + c).join('');
+            }
+            const num = parseInt(hex, 16);
+            const r = clamp((num >> 16) + amount);
+            const g = clamp(((num >> 8) & 0x00FF) + amount);
+            const b = clamp((num & 0x0000FF) + amount);
+            return `#${(1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1)}`;
+        }
+        return color;
+    }
+    
+    function openAddEventModal() {
+        document.getElementById('addEventModal').classList.remove('hidden');
+    }
+    
+    function closeAddEventModal() {
+        document.getElementById('addEventModal').classList.add('hidden');
+    }
+    
+    // Close modals on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeEventDetailsModal();
+            closeAddEventModal();
+            closeDeleteConfirmModal();
+        }
+    });
+    
+    // Close modals on overlay click
+    document.getElementById('eventDetailsModal').addEventListener('click', function(e) {
+        if (e.target === this) closeEventDetailsModal();
+    });
+    
+    document.getElementById('deleteConfirmModal').addEventListener('click', function(e) {
+        if (e.target === this) closeDeleteConfirmModal();
+    });
+</script>
+{% endblock %}

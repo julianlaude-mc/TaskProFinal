@@ -1,0 +1,390 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}My Assignments{% endblock %}
+{% block nav-tasks %}active-nav{% endblock %}
+{% block page-title %}My Assignments{% endblock %}
+
+{% block content %}
+<!-- LeafletJS for Map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Material Icons -->
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+<!-- Define Alpine.js component BEFORE it's used -->
+<script>
+function taskManager() {
+    return {
+        openViewMap: false,
+        openEdit: false,
+        openProject: false,
+        viewMapTitle: '',
+        viewMapLat: 0,
+        viewMapLng: 0,
+        viewMapInstance: null,
+        editTask: {},
+        projectDetails: {},
+        
+        openViewMapModal(title, lat, lng) {
+            this.viewMapTitle = title;
+            this.viewMapLat = lat;
+            this.viewMapLng = lng;
+            this.openViewMap = true;
+            
+            this.$nextTick(() => {
+                this.initViewMap(lat, lng);
+            });
+        },
+        
+        initViewMap(lat, lng) {
+            // Remove existing map instance if any
+            if (this.viewMapInstance) {
+                this.viewMapInstance.remove();
+                this.viewMapInstance = null;
+            }
+            
+            // Initialize new map
+            this.viewMapInstance = L.map('viewMap').setView([lat || 11.5833, lng || 124.4667], 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(this.viewMapInstance);
+            
+            // Add marker
+            L.marker([lat, lng]).addTo(this.viewMapInstance)
+                .bindPopup(this.viewMapTitle)
+                .openPopup();
+            
+            // Invalidate size after a short delay
+            setTimeout(() => {
+                this.viewMapInstance.invalidateSize();
+            }, 200);
+        },
+        openProjectModal(details) {
+            this.projectDetails = details;
+            this.openProject = true;
+        }
+    }
+}
+</script>
+
+<div class="container mt-2" x-data="taskManager()">
+
+    <!-- Flash Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 p-3 rounded-lg text-white {% if message.tags == 'success' %}bg-green-500{% elif message.tags == 'error' %}bg-red-500{% else %}bg-blue-500{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 class="text-xl font-semibold text-gray-800">Projects Assigned to You</h2>
+                <p class="text-gray-600 text-sm">Below are the projects you are assigned to manage.</p>
+            </div>
+        </div>
+    </div>
+
+    {% if tasks %}
+    <!-- Assignments Table - Responsive -->
+    <div class="table-container">
+        <table class="table-compact" id="tasksTableCompact">
+            <thead>
+                <tr>
+                    <th class="px-4 py-2">#</th>
+                    <th class="px-4 py-2">Project</th>
+                    <th class="px-4 py-2">Task</th>
+                    <th class="px-4 py-2">Due Date</th>
+                    <th class="px-4 py-2">Status</th>
+                    <th class="px-4 py-2 text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr class="hover:bg-gray-50">
+                    <td data-label="#" class="px-4 py-2">{{ forloop.counter }}</td>
+                    <td data-label="Project" class="px-4 py-2 font-medium">
+                        <button type="button"
+                            class="text-blue-600 hover:text-blue-700 hover:underline text-left"
+                            @click="openProjectModal({
+                                title: '{{ task.project.project_title|escapejs }}',
+                                description: '{{ task.project.project_description|default_if_none:''|escapejs }}',
+                                project_code: '{{ task.project.project_code|default_if_none:''|escapejs }}',
+                                year: '{{ task.project.year|default_if_none:''|escapejs }}',
+                                agency_grantee: '{{ task.project.agency_grantee|default_if_none:''|escapejs }}',
+                                program: '{{ task.project.program|default_if_none:''|escapejs }}',
+                                type_of_project: '{{ task.project.type_of_project|default_if_none:''|escapejs }}',
+                                status: '{{ task.project.status|default_if_none:''|escapejs }}',
+                                remarks: '{{ task.project.remarks|default_if_none:''|escapejs }}',
+                                beneficiary: '{{ task.project.beneficiary|default_if_none:''|escapejs }}',
+                                beneficiary_address: '{{ task.project.beneficiary_address|default_if_none:''|escapejs }}',
+                                contact_details: '{{ task.project.contact_details|default_if_none:''|escapejs }}',
+                                proponent_details: '{{ task.project.proponent_details|default_if_none:''|escapejs }}',
+                                no_of_beneficiaries: '{{ task.project.no_of_beneficiaries|default_if_none:'' }}',
+                                male: '{{ task.project.male|default_if_none:'' }}',
+                                female: '{{ task.project.female|default_if_none:'' }}',
+                                total_beneficiaries: '{{ task.project.total_beneficiaries|default_if_none:'' }}',
+                                senior_citizen: '{{ task.project.senior_citizen|default_if_none:'' }}',
+                                pwd: '{{ task.project.pwd|default_if_none:'' }}',
+                                municipality: '{{ task.project.mun|default_if_none:''|escapejs }}',
+                                province: '{{ task.project.province|default_if_none:''|escapejs }}',
+                                district: '{{ task.project.district|default_if_none:''|escapejs }}',
+                                fund_source: '{{ task.project.fund_source|default_if_none:''|escapejs }}',
+                                funds: '₱{{ task.project.funds|floatformat:2|intcomma|default_if_none:'0.00' }}',
+                                total_project_cost: '₱{{ task.project.total_project_cost|floatformat:2|intcomma|default_if_none:'0.00' }}',
+                                counterpart_funds: '₱{{ task.project.counterpart_funds|floatformat:2|intcomma|default_if_none:'0.00' }}',
+                                internally_managed_fund: '₱{{ task.project.internally_managed_fund|floatformat:2|intcomma|default_if_none:'0.00' }}',
+                                total_funds_released: '₱{{ task.project.total_funds_released|floatformat:2|intcomma|default_if_none:'0.00' }}',
+                                first_tranche: '₱{{ task.project.first_tranche|floatformat:2|intcomma|default_if_none:'0.00' }}',
+                                second_tranche: '₱{{ task.project.second_tranche|floatformat:2|intcomma|default_if_none:'0.00' }}',
+                                third_tranche: '₱{{ task.project.third_tranche|floatformat:2|intcomma|default_if_none:'0.00' }}',
+                                project_start: '{{ task.project.project_start|date:'M d, Y'|default_if_none:'' }}',
+                                project_end: '{{ task.project.project_end|date:'M d, Y'|default_if_none:'' }}',
+                                date_of_release: '{{ task.project.date_of_release|date:'M d, Y'|default_if_none:'' }}',
+                                date_of_completion: '{{ task.project.date_of_completion|date:'M d, Y'|default_if_none:'' }}',
+                                original_project_duration: '{{ task.project.original_project_duration|default_if_none:''|escapejs }}',
+                                extension_date: '{{ task.project.extension_date|default_if_none:''|escapejs }}',
+                                check_ada_no: '{{ task.project.check_ada_no|default_if_none:''|escapejs }}',
+                                status_of_liquidation: '{{ task.project.status_of_liquidation|default_if_none:''|escapejs }}',
+                                date_of_liquidation: '{{ task.project.date_of_liquidation|date:'M d, Y'|default_if_none:'' }}',
+                                amount_liquidated: '₱{{ task.project.amount_liquidated|floatformat:0|intcomma|default_if_none:'0' }}',
+                                availed_technologies: '{{ task.project.availed_technologies|default_if_none:''|escapejs }}',
+                                interventions: '{{ task.project.interventions|default_if_none:''|escapejs }}',
+                                tafr: '{{ task.project.tafr|default_if_none:''|escapejs }}',
+                                par: '{{ task.project.par|default_if_none:''|escapejs }}',
+                                terminal_report: '{{ task.project.terminal_report|default_if_none:''|escapejs }}',
+                                invoice_receipt: '{{ task.project.invoice_receipt|default_if_none:''|escapejs }}',
+                                list_of_eqpt: '{{ task.project.list_of_eqpt|default_if_none:''|escapejs }}',
+                                donated: '{{ task.project.donated|default_if_none:''|escapejs }}',
+                                date_of_donation: '{{ task.project.date_of_donation|date:'M d, Y'|default_if_none:'' }}',
+                                donation_status: '{{ task.project.donation_status|default_if_none:''|escapejs }}',
+                                pme_visit: '{{ task.project.pme_visit|default_if_none:''|escapejs }}',
+                                womens_group: '{{ task.project.womens_group|default_if_none:''|escapejs }}',
+                                date_of_inspection_tagging: '{{ task.project.date_of_inspection_tagging|date:'M d, Y'|default_if_none:'' }}',
+                                acknowledgment_receipt_by_grantee: '{{ task.project.acknowledgment_receipt_by_grantee|default_if_none:''|escapejs }}'
+                            })">
+                            {{ task.project.project_title|truncatewords:5 }}
+                        </button>
+                    </td>
+                    <td data-label="Task" class="px-4 py-2">{{ task.description }}</td>
+                    <td data-label="Due Date" class="px-4 py-2">
+                        {% if task.due_date %}{{ task.due_date|date:"M d, Y" }}{% else %}<span class="text-gray-400">-</span>{% endif %}
+                    </td>
+                    <td data-label="Status" class="px-4 py-2 text-center">
+                        {% if task.status == 'pending' %}
+                            <span class="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800 font-medium">Pending</span>
+                        {% elif task.status == 'in_progress' %}
+                            <span class="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 font-medium">In Progress</span>
+                        {% elif task.status == 'completed' %}
+                            <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 font-medium">Completed</span>
+                        {% elif task.status == 'delayed' %}
+                            <span class="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800 font-medium">Delayed</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Actions" class="px-4 py-2 text-center">
+                        <div class="flex gap-1 justify-center">
+                            {% if task.project.latitude and task.project.longitude %}
+                            <button type="button" class="px-2 py-1 text-xs text-white bg-green-500 rounded" @click="openViewMapModal('{{ task.title|escapejs }}', {{ task.project.latitude }}, {{ task.project.longitude }})">
+                                <span class="material-icons text-sm">location_on</span>
+                            </button>
+                            {% endif %}
+                            <button type="button" class="px-2 py-1 text-xs text-white bg-blue-500 rounded" @click="editTask = {id: {{ task.id }}, title: '{{ task.title|escapejs }}', description: '{{ task.description|escapejs }}', status: '{{ task.status }}', due_date: '{{ task.due_date|date:"Y-m-d" }}'}; openEdit = true">
+                                <span class="material-icons text-sm">edit</span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    </div>
+
+    <!-- Project Details Modal -->
+    <div x-show="openProject" x-transition x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div @click.away="openProject = false" class="bg-white w-full max-w-lg p-6 rounded-lg shadow-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold" x-text="projectDetails.title || 'Project Details'"></h3>
+                <button @click="openProject = false" class="text-gray-500 hover:text-gray-700">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <div class="space-y-4 text-sm text-gray-700 max-h-[70vh] overflow-y-auto pr-1">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <p><span class="font-semibold">Code:</span> <span x-text="projectDetails.project_code || 'N/A'"></span></p>
+                    <p><span class="font-semibold">Year:</span> <span x-text="projectDetails.year || 'N/A'"></span></p>
+                    <p><span class="font-semibold">Agency:</span> <span x-text="projectDetails.agency_grantee || 'N/A'"></span></p>
+                    <p><span class="font-semibold">Program:</span> <span x-text="projectDetails.program || 'N/A'"></span></p>
+                    <p><span class="font-semibold">Type:</span> <span x-text="projectDetails.type_of_project || 'N/A'"></span></p>
+                    <p><span class="font-semibold">Status:</span> <span x-text="projectDetails.status || 'N/A'"></span></p>
+                    <p class="sm:col-span-2"><span class="font-semibold">Remarks:</span> <span x-text="projectDetails.remarks || 'N/A'"></span></p>
+                </div>
+
+                <div>
+                    <p class="font-semibold text-gray-800 mb-1">Location</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <p><span class="font-semibold">Municipality:</span> <span x-text="projectDetails.municipality || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Province:</span> <span x-text="projectDetails.province || 'N/A'"></span></p>
+                        <p><span class="font-semibold">District:</span> <span x-text="projectDetails.district || 'N/A'"></span></p>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="font-semibold text-gray-800 mb-1">Beneficiaries</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <p><span class="font-semibold">Beneficiary:</span> <span x-text="projectDetails.beneficiary || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Address:</span> <span x-text="projectDetails.beneficiary_address || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Contact:</span> <span x-text="projectDetails.contact_details || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Proponent:</span> <span x-text="projectDetails.proponent_details || 'N/A'"></span></p>
+                        <p><span class="font-semibold">No. Beneficiaries:</span> <span x-text="projectDetails.no_of_beneficiaries || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Male:</span> <span x-text="projectDetails.male || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Female:</span> <span x-text="projectDetails.female || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Total:</span> <span x-text="projectDetails.total_beneficiaries || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Senior:</span> <span x-text="projectDetails.senior_citizen || 'N/A'"></span></p>
+                        <p><span class="font-semibold">PWD:</span> <span x-text="projectDetails.pwd || 'N/A'"></span></p>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="font-semibold text-gray-800 mb-1">Financials</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <p><span class="font-semibold">Fund Source:</span> <span x-text="projectDetails.fund_source || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Approved Budget:</span> <span x-text="projectDetails.funds || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Total Cost:</span> <span x-text="projectDetails.total_project_cost || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Counterpart:</span> <span x-text="projectDetails.counterpart_funds || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Internal Fund:</span> <span x-text="projectDetails.internally_managed_fund || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Released:</span> <span x-text="projectDetails.total_funds_released || 'N/A'"></span></p>
+                        <p><span class="font-semibold">1st Tranche:</span> <span x-text="projectDetails.first_tranche || 'N/A'"></span></p>
+                        <p><span class="font-semibold">2nd Tranche:</span> <span x-text="projectDetails.second_tranche || 'N/A'"></span></p>
+                        <p><span class="font-semibold">3rd Tranche:</span> <span x-text="projectDetails.third_tranche || 'N/A'"></span></p>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="font-semibold text-gray-800 mb-1">Timeline</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <p><span class="font-semibold">Start Date:</span> <span x-text="projectDetails.project_start || 'N/A'"></span></p>
+                        <p><span class="font-semibold">End Date:</span> <span x-text="projectDetails.project_end || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Release Date:</span> <span x-text="projectDetails.date_of_release || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Completion Date:</span> <span x-text="projectDetails.date_of_completion || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Duration:</span> <span x-text="projectDetails.original_project_duration || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Extension Date:</span> <span x-text="projectDetails.extension_date || 'N/A'"></span></p>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="font-semibold text-gray-800 mb-1">Liquidation</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <p><span class="font-semibold">Check/ADA:</span> <span x-text="projectDetails.check_ada_no || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Status:</span> <span x-text="projectDetails.status_of_liquidation || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Date:</span> <span x-text="projectDetails.date_of_liquidation || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Amount:</span> <span x-text="projectDetails.amount_liquidated || 'N/A'"></span></p>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="font-semibold text-gray-800 mb-1">Technologies & Documents</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <p><span class="font-semibold">Tech Availed:</span> <span x-text="projectDetails.availed_technologies || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Interventions:</span> <span x-text="projectDetails.interventions || 'N/A'"></span></p>
+                        <p><span class="font-semibold">TAFR:</span> <span x-text="projectDetails.tafr || 'N/A'"></span></p>
+                        <p><span class="font-semibold">PAR:</span> <span x-text="projectDetails.par || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Terminal Report:</span> <span x-text="projectDetails.terminal_report || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Invoice/Receipt:</span> <span x-text="projectDetails.invoice_receipt || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Equipment List:</span> <span x-text="projectDetails.list_of_eqpt || 'N/A'"></span></p>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="font-semibold text-gray-800 mb-1">Donation & Other</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <p><span class="font-semibold">Donated:</span> <span x-text="projectDetails.donated || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Donation Date:</span> <span x-text="projectDetails.date_of_donation || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Donation Status:</span> <span x-text="projectDetails.donation_status || 'N/A'"></span></p>
+                        <p><span class="font-semibold">PME Visit:</span> <span x-text="projectDetails.pme_visit || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Women Group:</span> <span x-text="projectDetails.womens_group || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Inspection Date:</span> <span x-text="projectDetails.date_of_inspection_tagging || 'N/A'"></span></p>
+                        <p><span class="font-semibold">Receipt by Grantee:</span> <span x-text="projectDetails.acknowledgment_receipt_by_grantee || 'N/A'"></span></p>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="font-semibold text-gray-800 mb-1">Description</p>
+                    <p x-text="projectDetails.description || 'No description available.'"></p>
+                </div>
+            </div>
+            <div class="flex justify-end mt-4">
+                <button type="button" @click="openProject = false" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Map Modal -->
+    <div x-show="openViewMap" x-transition x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div @click.away="openViewMap = false" class="bg-white w-full max-w-2xl p-6 rounded-lg shadow-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold" x-text="'Task Location: ' + viewMapTitle"></h3>
+                <button @click="openViewMap = false" class="text-gray-500 hover:text-gray-700">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <div id="viewMap" class="w-full h-80 rounded-lg border"></div>
+            <div class="flex justify-end mt-4">
+                <button type="button" @click="openViewMap = false" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Task Status Modal -->
+    <div x-show="openEdit" x-transition x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div @click.away="openEdit = false" class="bg-white w-full max-w-md p-6 rounded-lg shadow-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Update Task Status</h3>
+                <button @click="openEdit = false" class="text-gray-500 hover:text-gray-700">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <h4 class="font-medium text-gray-800" x-text="editTask.title"></h4>
+                <p class="text-sm text-gray-600 mt-1" x-text="editTask.description"></p>
+            </div>
+
+            <form method="POST" action="{% url 'staff_task_edit_url' %}">
+                {% csrf_token %}
+                <input type="hidden" name="id" :value="editTask.id">
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select name="status" x-model="editTask.status" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="pending">Pending</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="delayed">Delayed</option>
+                    </select>
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <button type="button" @click="openEdit = false" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+{% endblock %}

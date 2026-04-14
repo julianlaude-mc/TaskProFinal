@@ -1,0 +1,29 @@
+{
+  "name": "myproject",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:css": "npx postcss assets/css/input.css -o static/css/tailwind.css --env production",
+    "watch:css": "npx postcss assets/css/input.css -o static/css/tailwind.css --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/laudejulian-mc/DOST_TaskPro.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/laudejulian-mc/DOST_TaskPro/issues"
+  },
+  "homepage": "https://github.com/laudejulian-mc/DOST_TaskPro#readme",
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "autoprefixer": "^10.4.23",
+    "postcss": "^8.5.6",
+    "postcss-cli": "^11.0.1",
+    "tailwindcss": "^4.1.18"
+  }
+}

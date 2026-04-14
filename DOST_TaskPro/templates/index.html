@@ -1,0 +1,117 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | TaskPro</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Shared modern UI styles -->
+    <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=20260327login">
+
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="{% static 'img/dost.png' %}" type="image/png">
+
+    <!-- Google Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+
+<body class="modern-ui min-h-screen font-sans text-slate-100 overflow-x-hidden">
+
+    <div class="min-h-screen relative flex items-center justify-center px-4 py-10">
+        <div class="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950"></div>
+        <div class="absolute inset-0 opacity-100" style="background:
+            radial-gradient(1300px 580px at 15% -12%, rgba(56, 189, 248, 0.30), transparent 60%),
+            radial-gradient(1200px 520px at 88% -10%, rgba(99, 102, 241, 0.34), transparent 62%),
+            radial-gradient(900px 500px at 50% 120%, rgba(2, 6, 23, 0.92), transparent 68%),
+            linear-gradient(180deg, rgba(2, 6, 23, 0.45) 0%, rgba(2, 6, 23, 0.72) 100%);"></div>
+        <div class="absolute inset-0 bg-black/30"></div>
+
+        <div class="relative w-full max-w-md rounded-3xl border border-slate-500/60 bg-slate-900/88 backdrop-blur-xl shadow-2xl shadow-black/50 p-8 md:p-10">
+            <div class="absolute inset-0 rounded-3xl ring-1 ring-sky-400/20 pointer-events-none"></div>
+
+            <div class="relative mb-6 rounded-2xl border border-sky-400/30 bg-gradient-to-r from-sky-500/18 via-indigo-500/16 to-sky-500/18 px-4 py-3">
+                <div class="flex items-center justify-center gap-3">
+                    <img src="{% static 'img/dost.png' %}" alt="DOST" class="h-8 w-8 rounded-full border border-white/40">
+                    <div class="text-center leading-tight">
+                        <p class="text-[11px] tracking-[0.18em] uppercase text-sky-200/90">Department of Science and Technology</p>
+                        <p class="text-sm font-semibold text-white">Project Monitoring System</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col items-center mb-7">
+                <div class="p-1.5 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 shadow-lg shadow-sky-500/30 mb-3">
+                    <img src="{% static 'img/dost.png' %}" alt="DOST Logo" class="h-14 w-14 rounded-full border border-white/40">
+                </div>
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">TaskPro</h1>
+                <p class="text-sm text-sky-300 font-medium">DOST Biliran</p>
+                <p class="text-slate-300 mt-1 text-sm">Sign in to continue</p>
+            </div>
+
+            <!-- Django Messages -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="p-3 mb-4 rounded-xl flex items-center border text-sm
+                        {% if message.tags == 'error' %}
+                            bg-red-500/15 border-red-500/30 text-red-200
+                        {% elif message.tags == 'success' %}
+                            bg-emerald-500/15 border-emerald-500/30 text-emerald-200
+                        {% else %}
+                            bg-sky-500/15 border-sky-500/30 text-sky-200
+                        {% endif %}">
+                        <span class="material-icons mr-2 text-base">
+                            {% if message.tags == 'error' %}
+                                error
+                            {% elif message.tags == 'success' %}
+                                check_circle
+                            {% else %}
+                                info
+                            {% endif %}
+                        </span>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- Login Form -->
+            <form method="POST" action="{% url 'index_url' %}" class="space-y-5">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-slate-200 font-medium mb-2 text-sm">Email</label>
+                    <div class="relative">
+                        <span class="material-icons absolute left-3 top-3 text-slate-400 text-lg">email</span>
+                        <input type="email" name="email"
+                            class="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-500/80 bg-slate-800/85 text-slate-100 placeholder:text-slate-400
+                                   focus:outline-none focus:ring-2 focus:ring-sky-500/35 focus:border-sky-400"
+                            placeholder="you@example.com" required>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-slate-200 font-medium mb-2 text-sm">Password</label>
+                    <div class="relative">
+                        <span class="material-icons absolute left-3 top-3 text-slate-400 text-lg">lock</span>
+                        <input type="password" name="password"
+                            class="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-500/80 bg-slate-800/85 text-slate-100 placeholder:text-slate-400
+                                   focus:outline-none focus:ring-2 focus:ring-sky-500/35 focus:border-sky-400"
+                            placeholder="********" required>
+                    </div>
+                </div>
+
+                <button type="submit"
+                    class="w-full bg-gradient-to-r from-sky-500 to-indigo-600 text-white py-2.5 rounded-xl
+                           font-semibold hover:from-sky-600 hover:to-indigo-700 transition duration-300
+                           shadow-lg shadow-sky-500/25 hover:shadow-indigo-500/25 flex items-center justify-center">
+                    <span class="material-icons mr-2 text-lg">login</span>
+                    Login
+                </button>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>
