@@ -294,6 +294,22 @@ if (document.readyState === 'interactive' || document.readyState === 'complete')
                     </div>
                 </div>
             </div>
+
+            <!-- Filename Option -->
+            <div class="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4 mb-6">
+                <h3 class="font-semibold text-gray-700 dark:text-white mb-2 flex items-center gap-2">
+                    <span class="material-icons text-sm">drive_file_rename_outline</span>
+                    Export Filename
+                </h3>
+                <label class="block text-sm text-gray-600 dark:text-gray-300 mb-2">PDF filename (optional)</label>
+                <input
+                    type="text"
+                    x-model="exportFileName"
+                    placeholder="e.g., Biliran_Q2_Report"
+                    class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-white"
+                >
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">.pdf will be added automatically if omitted.</p>
+            </div>
             
             <!-- Preview Summary -->
             <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6">
@@ -1375,6 +1391,7 @@ function pdfExportManager() {
             size: 'letter',
             orientation: 'landscape'
         },
+        exportFileName: '',
         init() {
             // Get URL from data attribute
             this.pdfUrl = this.$el.dataset.pdfUrl;
@@ -1423,6 +1440,11 @@ function pdfExportManager() {
             // Add layout parameters
             params.push('page_size=' + encodeURIComponent(this.pageLayout.size));
             params.push('page_orientation=' + encodeURIComponent(this.pageLayout.orientation));
+
+            // Add custom filename
+            if (this.exportFileName && this.exportFileName.trim()) {
+                params.push('filename=' + encodeURIComponent(this.exportFileName.trim()));
+            }
             
             url += params.join('&');
             

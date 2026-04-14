@@ -53,11 +53,6 @@ if not loaded and env_path.exists():
 GOOGLE_API_KEY = (os.environ.get('GOOGLE_API_KEY') or '').strip()
 GOOGLE_GENAI_MODEL = (os.environ.get('GOOGLE_GENAI_MODEL') or 'gemini-2.0-flash').strip()
 
-if not GOOGLE_API_KEY:
-    raise ImproperlyConfigured(
-        'GOOGLE_API_KEY is required. Set it in .env or the host environment.'
-    )
-
 # =============================================================================
 # SECURITY
 # =============================================================================
@@ -65,6 +60,11 @@ if not GOOGLE_API_KEY:
 SECRET_KEY = 'django-insecure-72-(ie&i&iwppsfsor=s*e0-a-28kvq6fd7g@vlni(-oaj9nho'
 
 DEBUG = True
+
+if not GOOGLE_API_KEY and not DEBUG:
+    raise ImproperlyConfigured(
+        'GOOGLE_API_KEY is required. Set it in .env or the host environment.'
+    )
 
 ALLOWED_HOSTS = ['taskpro.pythonanywhere.com', 'localhost', '127.0.0.1']
 

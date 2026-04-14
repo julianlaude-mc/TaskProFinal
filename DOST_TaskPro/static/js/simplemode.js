@@ -13,8 +13,30 @@
     try {
       var tables = document.querySelectorAll('.table-section');
       var isSimple = isSimpleModeActive();
+      var body = document.body;
+      var isReversed = body && body.classList.contains('simple-mode-reversed');
+      var isExcluded = body && body.classList.contains('no-simple-mode');
+      var hasCharts = !!document.querySelector('.chart-section');
+
       for (var i = 0; i < tables.length; i++) {
-        tables[i].style.display = isSimple ? 'none' : '';
+        var tableEl = tables[i];
+
+        if (!isSimple || isExcluded) {
+          tableEl.style.removeProperty('display');
+          continue;
+        }
+
+        if (isReversed) {
+          tableEl.style.setProperty('display', 'block', 'important');
+          continue;
+        }
+
+        // If a page has no chart section, keep table visible to avoid blank screens.
+        if (hasCharts) {
+          tableEl.style.setProperty('display', 'none', 'important');
+        } else {
+          tableEl.style.setProperty('display', 'block', 'important');
+        }
       }
     } catch (e) {
       console.error('SimpleModeHelper error:', e);

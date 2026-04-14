@@ -243,7 +243,7 @@ def index_view(request):
 
             # Redirect based on role
             target_url = reverse('index_url')
-            if user.role == 'admin':
+            if user.is_superuser or user.role == 'admin':
                 target_url = reverse('administrator_dashboard_url')
             elif user.role == 'dost_staff':
                 target_url = reverse('staff_dashboard_url')
@@ -395,13 +395,6 @@ def get_notification_count_view(request):
 # Administrator
 @login_required
 def administrator_dashboard_view(request):
-    cache_key = 'admin_dashboard_context_v1'
-    cached_context = cache.get(cache_key)
-    if cached_context:
-        context = dict(cached_context)
-        context['recent_activities'] = AuditLog.objects.select_related('user').order_by('-timestamp')[:10]
-        return render(request, 'administrator/dashboard.html', context)
-
     # -----------------------------
     # Municipality Coordinates for Biliran
     # -----------------------------
@@ -658,9 +651,6 @@ def administrator_dashboard_view(request):
         # Activity Feed
         'recent_activities': recent_activities,
     }
-
-    cache_context = {key: value for key, value in context.items() if key != 'recent_activities'}
-    cache.set(cache_key, cache_context, 60)
 
     return render(request, 'administrator/dashboard.html', context)
 
@@ -3130,28 +3120,47 @@ def financial_summary_pdf(request):
     # ---------------------------
     # Generate Graph with Matplotlib
     # ---------------------------
-    fig, ax = plt.subplots(figsize=(8, 4))
-    bar_width = 0.25
+    fig, ax = plt.subplots(figsize=(8.6, 4.4))
+    fig.patch.set_facecolor('#F8FAFC')
+    ax.set_facecolor('#FFFFFF')
+    bar_width = 0.24
     index = range(len(labels))
 
-    ax.bar(index, total_amounts, bar_width, label='Total Budget', color='skyblue')
-    ax.bar([i + bar_width for i in index], spent_amounts, bar_width, label='Spent', color='salmon')
-    ax.bar([i + bar_width*2 for i in index], remaining_amounts, bar_width, label='Remaining', color='lightgreen')
+    bars_total = ax.bar(index, total_amounts, bar_width, label='Total Budget', color='#2563EB', edgecolor='white', linewidth=0.8)
+    bars_spent = ax.bar([i + bar_width for i in index], spent_amounts, bar_width, label='Spent', color='#EF4444', edgecolor='white', linewidth=0.8)
+    bars_remaining = ax.bar([i + bar_width * 2 for i in index], remaining_amounts, bar_width, label='Remaining', color='#10B981', edgecolor='white', linewidth=0.8)
 
-    ax.set_xlabel('Fund Source')
-    ax.set_ylabel('Amount (PHP)')
-    ax.set_title('Financial Overview per Budget')
+    ax.set_xlabel('Fund Source', fontsize=10, fontweight='bold')
+    ax.set_ylabel('Amount (PHP)', fontsize=10, fontweight='bold')
+    ax.set_title('Financial Overview per Budget', fontsize=13, fontweight='bold', pad=12)
     ax.set_xticks([i + bar_width for i in index])
-    ax.set_xticklabels(labels, rotation=45, ha='right')
-    ax.legend()
+    ax.set_xticklabels(labels, rotation=35, ha='right', fontsize=9)
+    ax.tick_params(axis='y', labelsize=9)
+    ax.grid(axis='y', linestyle='--', alpha=0.25)
+    for spine in ['top', 'right', 'left']:
+        ax.spines[spine].set_visible(False)
+    ax.legend(frameon=False, ncol=3, loc='upper left', fontsize=9)
 
     # Format y-axis as currency without decimals
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'PHP {int(x):,}'))
 
+    def _annotate_currency_bars(bars):
+        ymax = max(total_amounts + spent_amounts + remaining_amounts) if (total_amounts + spent_amounts + remaining_amounts) else 0
+        pad = ymax * 0.012 if ymax else 0
+        for bar in bars:
+            h = bar.get_height()
+            if h <= 0:
+                continue
+            ax.text(bar.get_x() + bar.get_width() / 2, h + pad, f'{int(h):,}', ha='center', va='bottom', fontsize=7, color='#334155')
+
+    _annotate_currency_bars(bars_total)
+    _annotate_currency_bars(bars_spent)
+    _annotate_currency_bars(bars_remaining)
+
     # Save plot to BytesIO buffer
     buf = io.BytesIO()
     plt.tight_layout()
-    plt.savefig(buf, format='PNG')
+    plt.savefig(buf, format='PNG', dpi=220, bbox_inches='tight')
     plt.close(fig)
     buf.seek(0)
 
@@ -3286,10 +3295,16 @@ def proposal_status_pdf(request):
     counts = list(status_counts.values())
     colors_list = ['gold', 'lightgreen', 'red']  # Pending, Approved, Declined
 
-    fig, ax = plt.subplots(figsize=(6,6))
-    bars = ax.bar(labels, counts, color=colors_list)
-    ax.set_ylabel('Number of Proposals')
-    ax.set_title('Proposal Status Overview', fontsize=12, weight='bold')
+    fig, ax = plt.subplots(figsize=(6.2, 5.4))
+    fig.patch.set_facecolor('#F8FAFC')
+    ax.set_facecolor('#FFFFFF')
+    bars = ax.bar(labels, counts, color=['#F59E0B', '#10B981', '#EF4444'], edgecolor='white', linewidth=0.9)
+    ax.set_ylabel('Number of Proposals', fontsize=10, fontweight='bold')
+    ax.set_title('Proposal Status Overview', fontsize=13, fontweight='bold', pad=12)
+    ax.tick_params(axis='both', labelsize=9)
+    ax.grid(axis='y', linestyle='--', alpha=0.25)
+    for spine in ['top', 'right', 'left']:
+        ax.spines[spine].set_visible(False)
 
     # Make y-axis integer only
     ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
@@ -3303,12 +3318,13 @@ def proposal_status_pdf(request):
             f'{int(height)}',
             ha='center',
             va='bottom',
-            fontsize=9
+            fontsize=9,
+            color='#334155'
         )
 
     plt.tight_layout()
     buf = io.BytesIO()
-    plt.savefig(buf, format='PNG', dpi=150)
+    plt.savefig(buf, format='PNG', dpi=220, bbox_inches='tight')
     plt.close(fig)
     buf.seek(0)
 
@@ -3456,13 +3472,29 @@ def approved_projects_pdf(request, report_year=None):
     fig_width = 16  # full page width
     fig_height = 6
     fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-    ax.bar(range(num_projects), approved_amounts, color='skyblue')
-    ax.set_title(f'Approved Project Budgets – Fiscal Year {report_year or "All"}', fontsize=12, weight='bold')
-    ax.set_xlabel('Project')
-    ax.set_ylabel('Approved Budget (PHP)')
+    fig.patch.set_facecolor('#F8FAFC')
+    ax.set_facecolor('#FFFFFF')
+    bars = ax.bar(range(num_projects), approved_amounts, color='#2563EB', edgecolor='white', linewidth=0.8)
+    ax.set_title(f'Approved Project Budgets – Fiscal Year {report_year or "All"}', fontsize=13, fontweight='bold', pad=12)
+    ax.set_xlabel('Project', fontsize=10, fontweight='bold')
+    ax.set_ylabel('Approved Budget (PHP)', fontsize=10, fontweight='bold')
     ax.set_xticks(range(num_projects))
     ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=8)
+    ax.tick_params(axis='y', labelsize=9)
+    ax.grid(axis='y', linestyle='--', alpha=0.25)
+    for spine in ['top', 'right', 'left']:
+        ax.spines[spine].set_visible(False)
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{int(x):,}'))
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+    peak = max(approved_amounts) if approved_amounts else 0
+    offset = peak * 0.01 if peak else 0
+    for bar in bars:
+        h = bar.get_height()
+        if h <= 0:
+            continue
+        ax.text(bar.get_x() + bar.get_width() / 2, h + offset, f'{int(h):,}', ha='center', va='bottom', fontsize=7, color='#334155')
+
     plt.tight_layout()
 
     buf = io.BytesIO()
@@ -3856,20 +3888,51 @@ def export_full_report_pdf(request):
     # Create Charts (Compact sizes with high DPI for quality)
     # -----------------------------
     chart_images = []
+
+    def style_axes(ax, title, ylabel=None, xlabel=None, rotate_x=False):
+        ax.set_facecolor('#FFFFFF')
+        if ylabel:
+            ax.set_ylabel(ylabel, fontsize=10, fontweight='bold')
+        if xlabel:
+            ax.set_xlabel(xlabel, fontsize=10, fontweight='bold')
+        ax.set_title(title, fontsize=12, fontweight='bold', pad=10)
+        ax.tick_params(axis='both', labelsize=9)
+        ax.grid(axis='y', linestyle='--', alpha=0.25)
+        if rotate_x:
+            for tick in ax.get_xticklabels():
+                tick.set_rotation(35)
+                tick.set_ha('right')
+        for spine in ['top', 'right', 'left']:
+            ax.spines[spine].set_visible(False)
+
+    def annotate_bars(ax, bars, horizontal=False):
+        if horizontal:
+            peak = max((bar.get_width() for bar in bars), default=0)
+            pad = peak * 0.015 if peak else 0
+            for bar in bars:
+                width = bar.get_width()
+                if width <= 0:
+                    continue
+                ax.text(width + pad, bar.get_y() + (bar.get_height() / 2), f'{int(width)}', va='center', fontsize=8, color='#334155')
+            return
+
+        peak = max((bar.get_height() for bar in bars), default=0)
+        pad = peak * 0.015 if peak else 0
+        for bar in bars:
+            height = bar.get_height()
+            if height <= 0:
+                continue
+            ax.text(bar.get_x() + (bar.get_width() / 2), height + pad, f'{int(height)}', ha='center', va='bottom', fontsize=8, color='#334155')
     
     # 1. Projects by Program Chart
     fig1, ax1 = plt.subplots(figsize=small_figsize)
+    fig1.patch.set_facecolor('#F8FAFC')
     program_labels = list(program_counts.keys())
     program_values = list(program_counts.values())
-    bars1 = ax1.bar(program_labels, program_values, color='#22C55E')
-    ax1.set_ylabel('Projects', fontsize=10)
-    ax1.set_title('Projects by Program', fontsize=12, fontweight='bold')
+    bars1 = ax1.bar(program_labels, program_values, color='#0EA5A4', edgecolor='white', linewidth=0.8)
+    style_axes(ax1, 'Projects by Program', ylabel='Projects', rotate_x=True)
     ax1.yaxis.set_major_locator(MaxNLocator(integer=True))
-    ax1.tick_params(axis='both', labelsize=9)
-    plt.xticks(rotation=45, ha='right')
-    for bar in bars1:
-        height = bar.get_height()
-        ax1.text(bar.get_x() + bar.get_width()/2., height, f'{int(height)}', ha='center', va='bottom', fontsize=9)
+    annotate_bars(ax1, bars1)
     plt.tight_layout()
     buf1 = io.BytesIO()
     plt.savefig(buf1, format='PNG', dpi=200, bbox_inches='tight')
@@ -3879,17 +3942,14 @@ def export_full_report_pdf(request):
 
     # 2. Proposal Status Chart
     fig2, ax2 = plt.subplots(figsize=small_figsize)
+    fig2.patch.set_facecolor('#F8FAFC')
     labels2 = ['Pending', 'Approved', 'Declined']
     values2 = [proposal_status_counts['pending'], proposal_status_counts['approved'], proposal_status_counts['rejected']]
-    colors2 = ['#FFCE56', '#4BC0C0', '#FF6384']
-    bars2 = ax2.bar(labels2, values2, color=colors2)
-    ax2.set_ylabel('Count', fontsize=10)
-    ax2.set_title('Proposal Status', fontsize=12, fontweight='bold')
+    colors2 = ['#F59E0B', '#10B981', '#EF4444']
+    bars2 = ax2.bar(labels2, values2, color=colors2, edgecolor='white', linewidth=0.8)
+    style_axes(ax2, 'Proposal Status', ylabel='Count')
     ax2.yaxis.set_major_locator(MaxNLocator(integer=True))
-    ax2.tick_params(axis='both', labelsize=9)
-    for bar in bars2:
-        height = bar.get_height()
-        ax2.text(bar.get_x() + bar.get_width()/2., height, f'{int(height)}', ha='center', va='bottom', fontsize=9)
+    annotate_bars(ax2, bars2)
     plt.tight_layout()
     buf2 = io.BytesIO()
     plt.savefig(buf2, format='PNG', dpi=200, bbox_inches='tight')
@@ -3899,18 +3959,15 @@ def export_full_report_pdf(request):
 
     # 3. Project Status Chart (Bar chart for clarity)
     fig3, ax3 = plt.subplots(figsize=small_figsize)
+    fig3.patch.set_facecolor('#F8FAFC')
     labels3 = ['New', 'Ongoing', 'Completed', 'Terminated']
     values3 = [project_status_counts['new'], project_status_counts['ongoing'], 
                project_status_counts['completed'], project_status_counts['terminated']]
     colors3 = ['#9CA3AF', '#3B82F6', '#22C55E', '#EF4444']
-    bars3 = ax3.bar(labels3, values3, color=colors3)
-    ax3.set_ylabel('Count', fontsize=10)
-    ax3.set_title('Project Status Distribution', fontsize=12, fontweight='bold')
+    bars3 = ax3.bar(labels3, values3, color=colors3, edgecolor='white', linewidth=0.8)
+    style_axes(ax3, 'Project Status Distribution', ylabel='Count')
     ax3.yaxis.set_major_locator(MaxNLocator(integer=True))
-    ax3.tick_params(axis='both', labelsize=10)
-    for bar in bars3:
-        height = bar.get_height()
-        ax3.text(bar.get_x() + bar.get_width()/2., height, f'{int(height)}', ha='center', va='bottom', fontsize=10)
+    annotate_bars(ax3, bars3)
     plt.tight_layout()
     buf3 = io.BytesIO()
     plt.savefig(buf3, format='PNG', dpi=200, bbox_inches='tight')
@@ -3920,11 +3977,23 @@ def export_full_report_pdf(request):
 
     # 4. User Role Distribution Chart (use legend instead of labels on pie)
     fig4, ax4 = plt.subplots(figsize=small_figsize)
+    fig4.patch.set_facecolor('#F8FAFC')
     labels4 = ['Admin', 'Staff', 'Proponent', 'Beneficiary']
     values4 = [user_role_counts['admin'], user_role_counts['dost_staff'], 
                user_role_counts['proponent'], user_role_counts['beneficiary']]
     colors4 = ['#8B5CF6', '#EC4899', '#0EA5E9', '#F59E0B']
-    wedges4, texts4, autotexts4 = ax4.pie(values4, colors=colors4, autopct='%1.1f%%', startangle=90, textprops={'fontsize': 10}, pctdistance=0.75)
+    wedges4, texts4, autotexts4 = ax4.pie(
+        values4,
+        colors=colors4,
+        autopct='%1.1f%%',
+        startangle=90,
+        textprops={'fontsize': 9, 'color': '#334155'},
+        pctdistance=0.75,
+        wedgeprops={'linewidth': 1, 'edgecolor': 'white'}
+    )
+    for t in autotexts4:
+        t.set_color('white')
+        t.set_fontsize(8)
     ax4.legend(wedges4, labels4, loc='center left', bbox_to_anchor=(1, 0.5), fontsize=9)
     ax4.set_title('User Roles', fontsize=12, fontweight='bold')
     plt.tight_layout()
@@ -3937,19 +4006,14 @@ def export_full_report_pdf(request):
     # 5. Projects by Municipality Chart
     if municipality_counts:
         fig5, ax5 = plt.subplots(figsize=wide_figsize)
+        fig5.patch.set_facecolor('#F8FAFC')
         muni_labels = list(municipality_counts.keys())
         muni_values = list(municipality_counts.values())
         colors5 = ['#3B82F6', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#0EA5E9', '#9CA3AF']
-        bars5 = ax5.bar(muni_labels, muni_values, color=colors5[:len(muni_labels)])
-        ax5.set_ylabel('Projects', fontsize=10)
-        ax5.set_xlabel('Municipality', fontsize=10)
-        ax5.set_title('Projects by Municipality', fontsize=12, fontweight='bold')
+        bars5 = ax5.bar(muni_labels, muni_values, color=colors5[:len(muni_labels)], edgecolor='white', linewidth=0.8)
+        style_axes(ax5, 'Projects by Municipality', ylabel='Projects', xlabel='Municipality', rotate_x=True)
         ax5.yaxis.set_major_locator(MaxNLocator(integer=True))
-        ax5.tick_params(axis='both', labelsize=9)
-        plt.xticks(rotation=45, ha='right')
-        for bar in bars5:
-            height = bar.get_height()
-            ax5.text(bar.get_x() + bar.get_width()/2., height, f'{int(height)}', ha='center', va='bottom', fontsize=9)
+        annotate_bars(ax5, bars5)
         plt.tight_layout()
         buf5 = io.BytesIO()
         plt.savefig(buf5, format='PNG', dpi=200, bbox_inches='tight')
@@ -3960,18 +4024,13 @@ def export_full_report_pdf(request):
     # 6. Proposals by Municipality Chart
     if proposal_municipality_counts:
         fig6, ax6 = plt.subplots(figsize=wide_figsize)
+        fig6.patch.set_facecolor('#F8FAFC')
         prop_muni_labels = list(proposal_municipality_counts.keys())
         prop_muni_values = list(proposal_municipality_counts.values())
-        bars6 = ax6.bar(prop_muni_labels, prop_muni_values, color='#0EA5E9')
-        ax6.set_ylabel('Proposals', fontsize=10)
-        ax6.set_xlabel('Municipality', fontsize=10)
-        ax6.set_title('Proposals by Municipality', fontsize=12, fontweight='bold')
+        bars6 = ax6.bar(prop_muni_labels, prop_muni_values, color='#0EA5E9', edgecolor='white', linewidth=0.8)
+        style_axes(ax6, 'Proposals by Municipality', ylabel='Proposals', xlabel='Municipality', rotate_x=True)
         ax6.yaxis.set_major_locator(MaxNLocator(integer=True))
-        ax6.tick_params(axis='both', labelsize=9)
-        plt.xticks(rotation=45, ha='right')
-        for bar in bars6:
-            height = bar.get_height()
-            ax6.text(bar.get_x() + bar.get_width()/2., height, f'{int(height)}', ha='center', va='bottom', fontsize=9)
+        annotate_bars(ax6, bars6)
         plt.tight_layout()
         buf6 = io.BytesIO()
         plt.savefig(buf6, format='PNG', dpi=200, bbox_inches='tight')
@@ -3982,14 +4041,11 @@ def export_full_report_pdf(request):
     # 7. Top Proponents Chart
     if top_proponent_labels:
         fig7, ax7 = plt.subplots(figsize=wide_figsize)
-        bars7 = ax7.barh(top_proponent_labels, top_proponent_values, color='#3B82F6')
-        ax7.set_xlabel('Proposals', fontsize=10)
-        ax7.set_title('Top Proponents by Proposal Count', fontsize=12, fontweight='bold')
+        fig7.patch.set_facecolor('#F8FAFC')
+        bars7 = ax7.barh(top_proponent_labels, top_proponent_values, color='#2563EB', edgecolor='white', linewidth=0.8)
+        style_axes(ax7, 'Top Proponents by Proposal Count', xlabel='Proposals')
         ax7.xaxis.set_major_locator(MaxNLocator(integer=True))
-        ax7.tick_params(axis='both', labelsize=9)
-        for bar in bars7:
-            width = bar.get_width()
-            ax7.text(width, bar.get_y() + bar.get_height()/2., f'{int(width)}', va='center', fontsize=9)
+        annotate_bars(ax7, bars7, horizontal=True)
         plt.tight_layout()
         buf7 = io.BytesIO()
         plt.savefig(buf7, format='PNG', dpi=200, bbox_inches='tight')
@@ -4000,17 +4056,13 @@ def export_full_report_pdf(request):
     # 8. Projects by Type Chart
     if type_counts:
         fig8, ax8 = plt.subplots(figsize=wide_figsize)
+        fig8.patch.set_facecolor('#F8FAFC')
         type_labels = list(type_counts.keys())
         type_values = list(type_counts.values())
-        bars8 = ax8.bar(type_labels, type_values, color='#F59E0B')
-        ax8.set_ylabel('Projects', fontsize=10)
-        ax8.set_title('Projects by Type', fontsize=12, fontweight='bold')
+        bars8 = ax8.bar(type_labels, type_values, color='#F59E0B', edgecolor='white', linewidth=0.8)
+        style_axes(ax8, 'Projects by Type', ylabel='Projects', rotate_x=True)
         ax8.yaxis.set_major_locator(MaxNLocator(integer=True))
-        ax8.tick_params(axis='both', labelsize=9)
-        plt.xticks(rotation=45, ha='right')
-        for bar in bars8:
-            height = bar.get_height()
-            ax8.text(bar.get_x() + bar.get_width()/2., height, f'{int(height)}', ha='center', va='bottom', fontsize=9)
+        annotate_bars(ax8, bars8)
         plt.tight_layout()
         buf8 = io.BytesIO()
         plt.savefig(buf8, format='PNG', dpi=200, bbox_inches='tight')
@@ -4024,6 +4076,11 @@ def export_full_report_pdf(request):
     def add_dost_header(canvas, doc):
         """Add DOST header to every page"""
         canvas.saveState()
+
+        # Metadata used by built-in PDF viewers.
+        canvas.setTitle(pdf_title)
+        canvas.setAuthor('DOST Biliran')
+        canvas.setSubject('Comprehensive Report')
         
         page_width = doc.pagesize[0]
         page_height = doc.pagesize[1]
@@ -4108,8 +4165,19 @@ def export_full_report_pdf(request):
     
     report_title = " | ".join(title_parts)
     
+    raw_filename = (request.GET.get('filename') or '').strip()
+    fallback_filename = f"dost_report_{selected_year or 'all_years'}"
+    if raw_filename:
+        sanitized = ''.join(ch for ch in raw_filename if ch.isalnum() or ch in (' ', '-', '_', '.')).strip(' .')
+        base_filename = sanitized or fallback_filename
+    else:
+        base_filename = fallback_filename
+    if not base_filename.lower().endswith('.pdf'):
+        base_filename = f"{base_filename}.pdf"
+    pdf_title = os.path.splitext(base_filename)[0]
+
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="dost_report_{selected_year or "all_years"}.pdf"'
+    response['Content-Disposition'] = f'inline; filename="{base_filename}"'
 
     # Create custom page template with header
     template = PageTemplate(id='dost_template', frames=frame, onPage=add_dost_header)
@@ -4589,67 +4657,88 @@ def export_full_report_pdf(request):
         elements.append(Spacer(1, 12))
         elements.append(Table([[program_table, type_table]], colWidths=[content_width / 2, content_width / 2]))
 
-    # CHARTS - Well-spaced layout (2 charts per row for readability)
-    if include_charts:
-        elements.append(Spacer(1, 18))
-        # Row 1: Financial Summary & Proposal Status
-        if len(chart_images) >= 2:
-            row1 = [
-                Image(chart_images[0][1], width=chart_image_width, height=chart_small_height),
-                Image(chart_images[1][1], width=chart_image_width, height=chart_small_height)
-            ]
-            chart_row1 = Table([row1], colWidths=[chart_cell_width, chart_cell_width])
-            chart_row1.setStyle(TableStyle([
+    # CHARTS - fixed pagination (4 charts per page)
+    if include_charts and chart_images:
+        chart_caption_style = ParagraphStyle(
+            'ChartCaptionStyle',
+            parent=styles['Normal'],
+            fontSize=8,
+            leading=9,
+            alignment=1,
+            textColor=colors.HexColor('#334155')
+        )
+
+        charts_per_page = 4
+        charts_per_row = 2
+        rows_per_page = 2
+        gutter = 10
+        total_chart_pages = (len(chart_images) + charts_per_page - 1) // charts_per_page
+
+        for page_index in range(total_chart_pages):
+            if page_index == 0:
+                elements.append(PageBreak())
+            else:
+                elements.append(PageBreak())
+
+            title_suffix = f" (Page {page_index + 1} of {total_chart_pages})" if total_chart_pages > 1 else ""
+            elements.append(Paragraph(f"Charts & Graphs Overview{title_suffix}", section_style))
+            elements.append(Spacer(1, 6))
+
+            page_charts = chart_images[page_index * charts_per_page:(page_index + 1) * charts_per_page]
+
+            card_width = (content_width - gutter) / charts_per_row
+            available_grid_height = max(240, content_height - 46)
+            card_height = (available_grid_height - gutter) / rows_per_page
+
+            # Keep a stable aspect ratio for non-distorted chart cards.
+            target_ratio = 1.62  # width / height
+            image_max_width = card_width - 14
+            image_max_height = max(80, card_height - 22)
+            image_height = min(image_max_height, image_max_width / target_ratio)
+            image_width = min(image_max_width, image_height * target_ratio)
+
+            grid_data = []
+            idx = 0
+            for _ in range(rows_per_page):
+                row_cards = []
+                for _ in range(charts_per_row):
+                    if idx < len(page_charts):
+                        chart_title, chart_buffer = page_charts[idx]
+                        chart_card = Table(
+                            [[Paragraph(chart_title, chart_caption_style)], [Image(chart_buffer, width=image_width, height=image_height)]],
+                            colWidths=[card_width - 8],
+                            rowHeights=[10, image_height + 4]
+                        )
+                        chart_card.setStyle(TableStyle([
+                            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#FFFFFF')),
+                            ('BOX', (0, 0), (-1, -1), 0.6, colors.HexColor('#CBD5E1')),
+                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                            ('TOPPADDING', (0, 0), (-1, 0), 2),
+                            ('BOTTOMPADDING', (0, 0), (-1, 0), 1),
+                            ('LEFTPADDING', (0, 0), (-1, -1), 2),
+                            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+                        ]))
+                        row_cards.append(chart_card)
+                        idx += 1
+                    else:
+                        row_cards.append(Spacer(1, 1))
+                grid_data.append(row_cards)
+
+            charts_grid = Table(
+                grid_data,
+                colWidths=[card_width, card_width],
+                rowHeights=[card_height, card_height]
+            )
+            charts_grid.setStyle(TableStyle([
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 2),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+                ('TOPPADDING', (0, 0), (-1, -1), 2),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
             ]))
-            elements.append(chart_row1)
-            elements.append(Spacer(1, 15))
-        
-        # Row 2: Project Status & User Roles
-        if len(chart_images) >= 4:
-            row2 = [
-                Image(chart_images[2][1], width=chart_image_width, height=chart_small_height),
-                Image(chart_images[3][1], width=chart_image_width, height=chart_small_height)
-            ]
-            chart_row2 = Table([row2], colWidths=[chart_cell_width, chart_cell_width])
-            chart_row2.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ]))
-            elements.append(chart_row2)
-            elements.append(Spacer(1, 15))
-        
-        # Row 3: Projects by Municipality (full width)
-        if len(chart_images) > 4:
-            muni_img = Image(chart_images[4][1], width=content_width, height=chart_wide_height)
-            elements.append(muni_img)
-            elements.append(Spacer(1, 15))
-
-        # Row 4: Proposals by Municipality & Top Proponents
-        if len(chart_images) >= 7:
-            row4 = [
-                Image(chart_images[5][1], width=chart_image_width, height=chart_small_height),
-                Image(chart_images[6][1], width=chart_image_width, height=chart_small_height)
-            ]
-            chart_row4 = Table([row4], colWidths=[chart_cell_width, chart_cell_width])
-            chart_row4.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ]))
-            elements.append(chart_row4)
-            elements.append(Spacer(1, 15))
-
-        # Row 5: Projects by Type (full width)
-        if len(chart_images) > 7:
-            type_img = Image(chart_images[7][1], width=content_width, height=chart_wide_height)
-            elements.append(type_img)
-            elements.append(Spacer(1, 15))
-
-        # Row 6: Top Projects by Beneficiaries (full width)
-        if len(chart_images) > 8:
-            benef_img = Image(chart_images[8][1], width=content_width, height=chart_wide_height)
-            elements.append(benef_img)
+            elements.append(charts_grid)
 
     # ========================================
     # SIGNATORY SECTION (Lower Right)

@@ -46,6 +46,14 @@
       if (sm !== 'true' && sm !== 'false') {
         localStorage.setItem('simpleMode', 'false');
       }
+
+      // Apply sidebar collapsed state before first paint to avoid flicker on navigation.
+      var sb = localStorage.getItem('sidebarOpen');
+      if (sb === 'false') {
+        document.documentElement.classList.add('sidebar-collapsed');
+      } else {
+        document.documentElement.classList.remove('sidebar-collapsed');
+      }
     } catch(e) {
       console.error('localStorage error:', e);
     }
@@ -595,32 +603,39 @@
 
     @media (min-width: 1024px) {
       /* Icon-only sidebar mode */
-      #sidebar.hidden-sidebar {
+      #sidebar.hidden-sidebar,
+      html.sidebar-collapsed #sidebar {
         width: 80px;
         min-width: 80px;
         overflow: visible;
         border-right: 1px solid #e5e7eb;
       }
 
-      #sidebar.hidden-sidebar .sidebar-header {
+      #sidebar.hidden-sidebar .sidebar-header,
+      html.sidebar-collapsed #sidebar .sidebar-header {
         padding: 0.75rem;
         text-align: center;
       }
 
-      #sidebar.hidden-sidebar .sidebar-header img {
+      #sidebar.hidden-sidebar .sidebar-header img,
+      html.sidebar-collapsed #sidebar .sidebar-header img {
         margin: 0 auto;
       }
 
-      #sidebar.hidden-sidebar .sidebar-header div {
+      #sidebar.hidden-sidebar .sidebar-header div,
+      html.sidebar-collapsed #sidebar .sidebar-header div {
         display: none;
       }
 
-      #sidebar.hidden-sidebar nav {
+      #sidebar.hidden-sidebar nav,
+      html.sidebar-collapsed #sidebar nav {
         padding: 1rem 0.5rem;
       }
 
       #sidebar.hidden-sidebar nav a,
-      #sidebar.hidden-sidebar nav .nav-item {
+      #sidebar.hidden-sidebar nav .nav-item,
+      html.sidebar-collapsed #sidebar nav a,
+      html.sidebar-collapsed #sidebar nav .nav-item {
         position: relative;
         justify-content: center;
         padding: 0.75rem;
@@ -628,19 +643,25 @@
       }
 
       #sidebar.hidden-sidebar nav a span:not(.material-icons),
-      #sidebar.hidden-sidebar nav .nav-item span:not(.material-icons) {
+      #sidebar.hidden-sidebar nav .nav-item span:not(.material-icons),
+      html.sidebar-collapsed #sidebar nav a span:not(.material-icons),
+      html.sidebar-collapsed #sidebar nav .nav-item span:not(.material-icons) {
         display: none;
       }
 
       #sidebar.hidden-sidebar nav a .material-icons,
-      #sidebar.hidden-sidebar nav .nav-item .material-icons {
+      #sidebar.hidden-sidebar nav .nav-item .material-icons,
+      html.sidebar-collapsed #sidebar nav a .material-icons,
+      html.sidebar-collapsed #sidebar nav .nav-item .material-icons {
         margin: 0 !important;
         font-size: 24px;
       }
 
       /* Tooltips for icon-only sidebar */
       #sidebar.hidden-sidebar nav a::after,
-      #sidebar.hidden-sidebar nav .nav-item::after {
+      #sidebar.hidden-sidebar nav .nav-item::after,
+      html.sidebar-collapsed #sidebar nav a::after,
+      html.sidebar-collapsed #sidebar nav .nav-item::after {
         content: attr(data-tooltip);
         position: absolute;
         left: 100%;
@@ -661,8 +682,14 @@
       }
 
       #sidebar.hidden-sidebar nav a:hover::after,
-      #sidebar.hidden-sidebar nav .nav-item:hover::after {
+      #sidebar.hidden-sidebar nav .nav-item:hover::after,
+      html.sidebar-collapsed #sidebar nav a:hover::after,
+      html.sidebar-collapsed #sidebar nav .nav-item:hover::after {
         opacity: 1;
+      }
+
+      html.sidebar-collapsed main.flex-1 {
+        margin-left: 5rem !important;
       }
 
       main.expanded-content {
@@ -1021,7 +1048,7 @@
           <button id="menu-btn" class="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg focus:outline-none transition">
             <span class="material-icons">menu</span>
           </button>
-          <button @click="sidebarOpen = !sidebarOpen; localStorage.setItem('sidebarOpen', sidebarOpen); window.dispatchEvent(new CustomEvent('taskpro:sidebar-toggled', { detail: { open: sidebarOpen } }))"
+            <button @click="const next = !sidebarOpen; sidebarOpen = next; localStorage.setItem('sidebarOpen', next); document.documentElement.classList.toggle('sidebar-collapsed', !next); window.dispatchEvent(new CustomEvent('taskpro:sidebar-toggled', { detail: { open: next } }))"
                   class="hidden lg:flex sidebar-toggle-btn icon-upgrade h-9 w-9 items-center justify-center rounded-lg border border-slate-200/80 bg-white hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all duration-200 text-slate-600"
                   :title="sidebarOpen ? 'Collapse Sidebar' : 'Expand Sidebar'"
                   :aria-label="sidebarOpen ? 'Collapse Sidebar' : 'Expand Sidebar'">
