@@ -114,16 +114,19 @@
         const budget = this.availableBudgets.find(b => b.id == this.selectedBudgetId);
         return budget ? budget.remaining_amount : 0;
     },
-    toggleSelectAll() {
-        if (this.selectAll) {
-            this.selectedIds = [...document.querySelectorAll('.project-checkbox')].map(cb => cb.value);
-        } else {
-            this.selectedIds = [];
-        }
+    toggleSelectAll(checked) {
+        const allCheckboxes = [...document.querySelectorAll('.project-checkbox')];
+        allCheckboxes.forEach((cb) => {
+            cb.checked = checked;
+        });
+        this.selectedIds = checked ? allCheckboxes.map(cb => String(cb.value)) : [];
+        this.selectAll = checked;
     },
     updateSelectAll() {
-        const allCheckboxes = document.querySelectorAll('.project-checkbox');
-        this.selectAll = this.selectedIds.length === allCheckboxes.length && allCheckboxes.length > 0;
+        const allCheckboxes = [...document.querySelectorAll('.project-checkbox')];
+        const checkedBoxes = allCheckboxes.filter(cb => cb.checked);
+        this.selectedIds = checkedBoxes.map(cb => String(cb.value));
+        this.selectAll = checkedBoxes.length === allCheckboxes.length && allCheckboxes.length > 0;
     },
     initAddMap() {
         if (this.addMap) return; // Already initialized
@@ -284,8 +287,8 @@
                     <tr>
                         <!-- Checkbox -->
                         <th class="px-2 py-3 border-b w-10">
-                            <input type="checkbox" x-model="selectAll" @change="toggleSelectAll()" 
-                                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <input type="checkbox" :checked="selectAll" @change="toggleSelectAll($event.target.checked)" @click.stop @mousedown.stop
+                                class="project-select-all rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                         </th>
                         <!-- Actions -->
                         <th class="px-4 py-3 border-b text-center">Actions</th>
@@ -378,8 +381,7 @@
                         <td class="px-2 py-3" onclick="event.stopPropagation();">
                             <input type="checkbox" class="project-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
                                 value="{{ project.id }}"
-                                x-model="selectedIds"
-                                @change="updateSelectAll()">
+                                @change="updateSelectAll()" @click.stop @mousedown.stop>
                         </td>
                         <!-- Actions -->
                         <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">
@@ -1716,10 +1718,52 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        $('#projectsTable').DataTable({
+        const projectsDt = $('#projectsTable').DataTable({
             responsive: true,
             language: { searchPlaceholder: "Search projects...", search: "" },
             dom: '<"flex flex-col md:flex-row justify-between items-center mb-4 space-y-2 md:space-y-0"f>rt<"flex flex-col md:flex-row justify-between items-center mt-4 text-sm text-gray-500"lip>',
+            columnDefs: [
+                { orderable: false, targets: [0, 1] }
+            ]
+        });
+
+        const table = document.getElementById('projectsTable');
+
+        function getBulkState() {
+            const container = document.querySelector('.w-full.min-w-0[x-data]');
+            if (!container) return null;
+            if (typeof Alpine !== 'undefined' && Alpine.$data) {
+                try { return Alpine.$data(container); } catch (_) {}
+            }
+            if (container.__x && container.__x.$data) return container.__x.$data;
+            if (container._x_dataStack && container._x_dataStack[0]) return container._x_dataStack[0];
+            return null;
+        }
+
+        function syncProjectsSelection() {
+            const state = getBulkState();
+            if (!state) return;
+            const all = projectsDt.rows({ search: 'applied' }).nodes().to$().find('.project-checkbox');
+            const checked = all.filter(':checked');
+            state.selectedIds = checked.map((_, el) => String(el.value)).get();
+            state.selectAll = all.length > 0 && checked.length === all.length;
+            const header = table.querySelector('.project-select-all');
+            if (header) header.checked = state.selectAll;
+        }
+
+        table.addEventListener('change', function(e) {
+            if (e.target.matches('.project-select-all')) {
+                projectsDt.rows({ search: 'applied' }).nodes().to$().find('.project-checkbox').prop('checked', e.target.checked);
+                syncProjectsSelection();
+                return;
+            }
+            if (e.target.matches('.project-checkbox')) {
+                syncProjectsSelection();
+            }
+        });
+
+        projectsDt.on('draw', function() {
+            syncProjectsSelection();
         });
 
         // Charts Logic

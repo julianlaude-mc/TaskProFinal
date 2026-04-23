@@ -138,6 +138,11 @@ def _invalidate_comm_hub_cache_for_group_chat(group_chat):
     _invalidate_admin_comm_hub_cache_for_users(member_ids)
 
 
+def _normalized_user_role(user):
+    """Normalize user role values to avoid case/whitespace mismatches."""
+    return (getattr(user, 'role', '') or '').strip().lower()
+
+
 def _get_announcement_target_user_ids(announcement):
     """Return user IDs affected by an announcement for cache invalidation."""
     explicit_user_ids = list(announcement.target_users.values_list('id', flat=True))
@@ -760,11 +765,42 @@ def administrator_users_view(request):
     users = User.objects.all().order_by('date_joined')
     return render(request, 'administrator/users.html', {'users': users})
 
+
+def _sanitize_username_candidate(raw_value):
+    value = (raw_value or '').strip().lower()
+    cleaned = ''.join(ch if (ch.isalnum() or ch in '._-') else '_' for ch in value)
+    cleaned = cleaned.strip('._-')
+    return cleaned[:150]
+
+
+def _build_unique_username(preferred_username, first_name, email, exclude_user_id=None):
+    base = _sanitize_username_candidate(preferred_username)
+    if not base:
+        base = _sanitize_username_candidate(first_name)
+    if not base:
+        base = _sanitize_username_candidate((email or '').split('@')[0])
+    if not base:
+        base = 'user'
+
+    existing = User.objects.all()
+    if exclude_user_id:
+        existing = existing.exclude(id=exclude_user_id)
+
+    username = base
+    suffix = 1
+    while existing.filter(username=username).exists():
+        suffix_token = f"_{suffix}"
+        username = f"{base[:150 - len(suffix_token)]}{suffix_token}"
+        suffix += 1
+
+    return username
+
 # -------------------------
 # Add User
 # -------------------------
 def administrator_users_add_view(request):
     if request.method == 'POST':
+        username_input = request.POST.get('username')
         email = request.POST.get('email')
         first_name = request.POST.get('first_name')
         middle_name = request.POST.get('middle_name')
@@ -779,8 +815,7 @@ def administrator_users_add_view(request):
         role = request.POST.get('role')
         profile_picture = request.FILES.get('profile_picture')
 
-        # Use email as username
-        username = email
+        username = _build_unique_username(username_input, first_name, email)
 
         # Validate profile picture if provided
         if profile_picture:
@@ -864,6 +899,7 @@ def administrator_users_update_view(request, user_id):
             "contact_number": user.contact_number,
         }
 
+        username_input = request.POST.get('username')
         email = request.POST.get('email')
         first_name = request.POST.get('first_name')
         middle_name = request.POST.get('middle_name')
@@ -878,8 +914,7 @@ def administrator_users_update_view(request, user_id):
         role = request.POST.get('role')
         profile_picture = request.FILES.get('profile_picture')
 
-        # Use email as username
-        username = email
+        username = _build_unique_username(username_input, first_name, email, exclude_user_id=user.id)
 
         # Duplicate check
         if User.objects.filter(email=email).exclude(id=user.id).exists():
@@ -1401,21 +1436,23 @@ def administrator_proposals_add_view(request):
     if request.method == 'POST':
         title = request.POST.get('title')
         description = request.POST.get('description')
-        proposed_amount = request.POST.get('proposed_amount') or 0
+        proposed_amount = (request.POST.get('proposed_amount') or '0').replace(',', '').strip()
         budget_id = request.POST.get('budget')
         documents = request.FILES.getlist('documents')  # Multiple files
+        allowed_proposal_extensions = ALLOWED_DOCUMENT_EXTENSIONS + ALLOWED_IMAGE_EXTENSIONS
         
         # Validate documents before processing
         for doc in documents:
             try:
-                validate_document_upload(doc)
+                validate_file_extension(doc, allowed_proposal_extensions)
+                validate_file_size(doc, MAX_DOCUMENT_SIZE)
             except ValidationError as e:
                 messages.error(request, f"Document '{doc.name}': {e.messages[0] if e.messages else str(e)}")
                 return redirect('administrator_proposals_url')
         
         # Validate proposed amount
         try:
-            proposed_amount = validate_positive_decimal(proposed_amount, 'Proposed Amount')
+            proposed_amount = validate_positive_decimal(proposed_amount or '0', 'Proposed Amount')
         except ValidationError as e:
             messages.error(request, e.messages[0] if e.messages else str(e))
             return redirect('administrator_proposals_url')
@@ -1523,8 +1560,15 @@ def administrator_proposals_update_view(request, pk):
         proposal.status = request.POST.get('status')
         
         # Handle multiple document uploads (add to existing)
+        allowed_proposal_extensions = ALLOWED_DOCUMENT_EXTENSIONS + ALLOWED_IMAGE_EXTENSIONS
         documents = request.FILES.getlist('documents')
         for doc in documents:
+            try:
+                validate_file_extension(doc, allowed_proposal_extensions)
+                validate_file_size(doc, MAX_DOCUMENT_SIZE)
+            except ValidationError as e:
+                messages.error(request, f"Document '{doc.name}': {e.messages[0] if e.messages else str(e)}")
+                return redirect('administrator_proposals_url')
             ProposalDocument.objects.create(
                 proposal=proposal,
                 file=doc,
@@ -5945,9 +5989,13 @@ def export_master_report_excel(request):
     
     # Get summary data
     total_budgets = Budget.objects.count()
-    total_budget_amount = Budget.objects.aggregate(total=Sum('total_amount'))['total'] or 0
-    total_remaining = Budget.objects.aggregate(total=Sum('remaining_amount'))['total'] or 0
-    total_spent = float(total_budget_amount) - float(total_remaining)
+    budget_totals = Budget.objects.aggregate(
+        total_equipment=Sum('total_equipment_value'),
+        total_delivered=Sum('delivered_equipment_value')
+    )
+    total_budget_amount = budget_totals.get('total_equipment') or 0
+    total_spent = budget_totals.get('total_delivered') or 0
+    total_remaining = float(total_budget_amount) - float(total_spent)
     
     total_proposals = Proposal.objects.count()
     pending_proposals = Proposal.objects.filter(status='pending').count()
@@ -9299,6 +9347,7 @@ def staff_personal_task_edit_view(request, task_id):
         task.priority = request.POST.get('priority', 'medium')
         task.due_date = request.POST.get('due_date') or None
         checklist_items = request.POST.getlist('checklist_items[]')
+        checklist_completed = request.POST.getlist('checklist_completed[]')
         
         try:
             task.project = Project.objects.get(id=project_id)
@@ -9308,9 +9357,12 @@ def staff_personal_task_edit_view(request, task_id):
         
         # Update checklist from form data
         checklist = []
-        for item_text in checklist_items:
+        for index, item_text in enumerate(checklist_items):
             if item_text.strip():  # Only add non-empty items
-                checklist.append({'text': item_text.strip(), 'completed': False})
+                completed = False
+                if index < len(checklist_completed):
+                    completed = str(checklist_completed[index]).strip().lower() in ['1', 'true', 'yes', 'on']
+                checklist.append({'text': item_text.strip(), 'completed': completed})
         
         if not checklist:
             messages.error(request, "Please add at least one checklist item.")
@@ -9318,6 +9370,7 @@ def staff_personal_task_edit_view(request, task_id):
         
         task.checklist = checklist
         task.save()
+        task.update_status_from_checklist()
         messages.success(request, "Personal task updated successfully!")
         return redirect('staff_personal_tasks_url')
     
@@ -10288,7 +10341,7 @@ def staff_create_group_chat_view(request):
 @login_required
 def proponent_group_chats_view(request):
     """List all group chats for proponent user"""
-    if request.user.role != 'proponent':
+    if _normalized_user_role(request.user) != 'proponent':
         messages.error(request, 'Access denied.')
         return redirect('proponent_dashboard_url')
 
@@ -10308,7 +10361,7 @@ def proponent_group_chats_view(request):
 @login_required
 def proponent_group_chat_detail_view(request, chat_id):
     """View group chat details and messages for proponent"""
-    if request.user.role != 'proponent':
+    if _normalized_user_role(request.user) != 'proponent':
         messages.error(request, 'Access denied.')
         return redirect('proponent_dashboard_url')
 
@@ -10425,7 +10478,7 @@ def proponent_create_group_chat_view(request):
 @login_required
 def beneficiary_group_chats_view(request):
     """List all group chats for beneficiary user"""
-    if request.user.role != 'beneficiary':
+    if _normalized_user_role(request.user) != 'beneficiary':
         messages.error(request, 'Access denied.')
         return redirect('beneficiary_dashboard_url')
 
@@ -10445,7 +10498,7 @@ def beneficiary_group_chats_view(request):
 @login_required
 def beneficiary_group_chat_detail_view(request, chat_id):
     """View group chat details and messages for beneficiary"""
-    if request.user.role != 'beneficiary':
+    if _normalized_user_role(request.user) != 'beneficiary':
         messages.error(request, 'Access denied.')
         return redirect('beneficiary_dashboard_url')
 
@@ -11300,7 +11353,7 @@ def staff_announcements_view(request):
 def proponent_messages_view(request):
     """Messages inbox view for proponents - shows conversations with people"""
     user = request.user
-    if user.role != 'proponent':
+    if _normalized_user_role(user) != 'proponent':
         messages.error(request, 'Access denied.')
         return redirect('proponent_dashboard_url')
 
@@ -11316,7 +11369,7 @@ def proponent_messages_view(request):
 def proponent_conversation_view(request, partner_id):
     """Chat-style conversation view for proponents"""
     user = request.user
-    if user.role != 'proponent':
+    if _normalized_user_role(user) != 'proponent':
         messages.error(request, 'Access denied.')
         return redirect('proponent_dashboard_url')
 
@@ -11370,7 +11423,7 @@ def proponent_conversation_view(request, partner_id):
 def proponent_compose_message_view(request):
     """Compose new message view for proponents"""
     user = request.user
-    if user.role != 'proponent':
+    if _normalized_user_role(user) != 'proponent':
         messages.error(request, 'Access denied.')
         return redirect('proponent_dashboard_url')
 
@@ -11432,7 +11485,7 @@ def proponent_compose_message_view(request):
 def proponent_message_detail_view(request, message_id):
     """View message details and reply for proponents"""
     user = request.user
-    if user.role != 'proponent':
+    if _normalized_user_role(user) != 'proponent':
         messages.error(request, 'Access denied.')
         return redirect('proponent_dashboard_url')
 
@@ -11505,7 +11558,7 @@ def proponent_message_detail_view(request, message_id):
 def proponent_announcements_view(request):
     """View announcements for proponents"""
     user = request.user
-    if user.role != 'proponent':
+    if _normalized_user_role(user) != 'proponent':
         messages.error(request, 'Access denied.')
         return redirect('proponent_dashboard_url')
 
@@ -11530,9 +11583,9 @@ def proponent_announcements_view(request):
 def beneficiary_messages_view(request):
     """Messages inbox view for beneficiaries - shows conversations with people"""
     user = request.user
-    if user.role != 'beneficiary':
+    if _normalized_user_role(user) != 'beneficiary':
         messages.error(request, 'Access denied.')
-        return redirect('index_url')
+        return redirect('beneficiary_dashboard_url')
 
     conversations = _build_user_conversations(user)
 
@@ -11546,9 +11599,9 @@ def beneficiary_messages_view(request):
 def beneficiary_conversation_view(request, partner_id):
     """Chat-style conversation view for beneficiaries"""
     user = request.user
-    if user.role != 'beneficiary':
+    if _normalized_user_role(user) != 'beneficiary':
         messages.error(request, 'Access denied.')
-        return redirect('index_url')
+        return redirect('beneficiary_dashboard_url')
 
     try:
         partner = User.objects.get(id=partner_id)
@@ -11600,9 +11653,9 @@ def beneficiary_conversation_view(request, partner_id):
 def beneficiary_compose_message_view(request):
     """Compose new message view for beneficiaries"""
     user = request.user
-    if user.role != 'beneficiary':
+    if _normalized_user_role(user) != 'beneficiary':
         messages.error(request, 'Access denied.')
-        return redirect('index_url')
+        return redirect('beneficiary_dashboard_url')
 
     if request.method == 'POST':
         recipient_id = request.POST.get('recipient')
@@ -11662,9 +11715,9 @@ def beneficiary_compose_message_view(request):
 def beneficiary_message_detail_view(request, message_id):
     """View message details and reply for beneficiaries"""
     user = request.user
-    if user.role != 'beneficiary':
+    if _normalized_user_role(user) != 'beneficiary':
         messages.error(request, 'Access denied.')
-        return redirect('index_url')
+        return redirect('beneficiary_dashboard_url')
 
     try:
         message = Message.objects.select_related('sender', 'recipient', 'parent_message').get(
@@ -11735,9 +11788,9 @@ def beneficiary_message_detail_view(request, message_id):
 def beneficiary_announcements_view(request):
     """View announcements for beneficiaries"""
     user = request.user
-    if user.role != 'beneficiary':
+    if _normalized_user_role(user) != 'beneficiary':
         messages.error(request, 'Access denied.')
-        return redirect('index_url')
+        return redirect('beneficiary_dashboard_url')
 
     # Get announcements for this user (all beneficiary announcements or targeted ones)
     # Filter in Python since SQLite doesn't support JSON field lookups like __contains

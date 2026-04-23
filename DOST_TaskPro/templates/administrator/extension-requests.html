@@ -20,16 +20,19 @@
     deleteRequest: { id: null, proposal: '' },
     bulkApprovedDays: 30,
     bulkRejectReason: '',
-    toggleSelectAll() {
-        if (this.selectAll) {
-            this.selectedIds = [...document.querySelectorAll('.request-checkbox:not(:disabled)')].map(cb => cb.value);
-        } else {
-            this.selectedIds = [];
-        }
+    toggleSelectAll(checked) {
+        const allCheckboxes = [...document.querySelectorAll('.request-checkbox:not(:disabled)')];
+        allCheckboxes.forEach((cb) => {
+            cb.checked = checked;
+        });
+        this.selectedIds = checked ? allCheckboxes.map(cb => String(cb.value)) : [];
+        this.selectAll = checked;
     },
     updateSelectAll() {
-        const allCheckboxes = document.querySelectorAll('.request-checkbox:not(:disabled)');
-        this.selectAll = this.selectedIds.length === allCheckboxes.length && allCheckboxes.length > 0;
+        const allCheckboxes = [...document.querySelectorAll('.request-checkbox:not(:disabled)')];
+        const checkedBoxes = allCheckboxes.filter(cb => cb.checked);
+        this.selectedIds = checkedBoxes.map(cb => String(cb.value));
+        this.selectAll = checkedBoxes.length === allCheckboxes.length && allCheckboxes.length > 0;
     }
 }">
 
@@ -92,7 +95,7 @@
             <thead class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
                 <tr>
                     <th class="px-4 py-2">
-                        <input type="checkbox" x-model="selectAll" @change="toggleSelectAll()" class="w-4 h-4 rounded border-gray-300">
+                        <input type="checkbox" :checked="selectAll" @change="toggleSelectAll($event.target.checked)" @click.stop @mousedown.stop class="request-select-all w-4 h-4 rounded border-gray-300">
                     </th>
                     <th class="px-4 py-2">#</th>
                     <th class="px-4 py-2">Proponent</th>
@@ -110,7 +113,7 @@
                 <tr class="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td class="px-4 py-2">
                         {% if request.status == 'pending' %}
-                        <input type="checkbox" value="{{ request.id }}" x-model="selectedIds" @change="updateSelectAll()" class="request-checkbox w-4 h-4 rounded border-gray-300">
+                        <input type="checkbox" value="{{ request.id }}" @change="updateSelectAll()" @click.stop @mousedown.stop class="request-checkbox w-4 h-4 rounded border-gray-300">
                         {% else %}
                         <input type="checkbox" disabled class="w-4 h-4 rounded border-gray-300 opacity-50 cursor-not-allowed">
                         {% endif %}
@@ -299,13 +302,52 @@ $(document).ready(function() {
     // Only initialize DataTables if there are data rows
     var rowCount = $('#adminExtensionRequestsTable tbody tr').length;
     if (rowCount > 1 || (rowCount === 1 && !$('#adminExtensionRequestsTable tbody tr td[colspan]').length)) {
-        $('#adminExtensionRequestsTable').DataTable({
+        const requestsDt = $('#adminExtensionRequestsTable').DataTable({
             "pageLength": 25,
             "order": [[ 6, "desc" ]],
             "responsive": true,
             "columnDefs": [
                 { "orderable": false, "targets": [0, 9] }
             ]
+        });
+
+        const table = document.getElementById('adminExtensionRequestsTable');
+
+        function getBulkState() {
+            const container = document.querySelector('.container[x-data]');
+            if (!container) return null;
+            if (typeof Alpine !== 'undefined' && Alpine.$data) {
+                try { return Alpine.$data(container); } catch (_) {}
+            }
+            if (container.__x && container.__x.$data) return container.__x.$data;
+            if (container._x_dataStack && container._x_dataStack[0]) return container._x_dataStack[0];
+            return null;
+        }
+
+        function syncRequestsSelection() {
+            const state = getBulkState();
+            if (!state) return;
+            const all = requestsDt.rows({ search: 'applied' }).nodes().to$().find('.request-checkbox:not(:disabled)');
+            const checked = all.filter(':checked');
+            state.selectedIds = checked.map((_, el) => String(el.value)).get();
+            state.selectAll = all.length > 0 && checked.length === all.length;
+            const header = table.querySelector('.request-select-all');
+            if (header) header.checked = state.selectAll;
+        }
+
+        table.addEventListener('change', function(e) {
+            if (e.target.matches('.request-select-all')) {
+                requestsDt.rows({ search: 'applied' }).nodes().to$().find('.request-checkbox:not(:disabled)').prop('checked', e.target.checked);
+                syncRequestsSelection();
+                return;
+            }
+            if (e.target.matches('.request-checkbox')) {
+                syncRequestsSelection();
+            }
+        });
+
+        requestsDt.on('draw', function() {
+            syncRequestsSelection();
         });
     }
 });

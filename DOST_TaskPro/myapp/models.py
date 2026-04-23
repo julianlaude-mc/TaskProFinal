@@ -941,7 +941,11 @@ class PersonalTask(models.Model):
     def toggle_checklist_item(self, index):
         """Toggle completion status of a checklist item"""
         if 0 <= index < len(self.checklist):
-            self.checklist[index]['completed'] = not self.checklist[index]['completed']
+            item = self.checklist[index]
+            if isinstance(item, str):
+                item = {'text': item, 'completed': False}
+                self.checklist[index] = item
+            self.checklist[index]['completed'] = not bool(self.checklist[index].get('completed', False))
             self.save(update_fields=['checklist', 'updated_at'])
             self.update_status_from_checklist()
     
@@ -950,7 +954,11 @@ class PersonalTask(models.Model):
         if not self.checklist:
             return
         
-        completed_items = sum(1 for item in self.checklist if item['completed'])
+        completed_items = sum(
+            1
+            for item in self.checklist
+            if isinstance(item, dict) and bool(item.get('completed', False))
+        )
         total_items = len(self.checklist)
         
         if completed_items == 0:
@@ -972,15 +980,33 @@ class PersonalTask(models.Model):
     
     def mark_completed(self):
         """Mark task as completed and set completion timestamp"""
+        if self.checklist:
+            normalized_checklist = []
+            for item in self.checklist:
+                if isinstance(item, str):
+                    normalized_checklist.append({'text': item, 'completed': True})
+                else:
+                    normalized_checklist.append({'text': item.get('text', ''), 'completed': True})
+            self.checklist = normalized_checklist
         self.status = 'completed'
         self.completed_at = timezone.now()
-        self.save(update_fields=['status', 'completed_at', 'updated_at'])
+        self.save(update_fields=['checklist', 'status', 'completed_at', 'updated_at'])
     
     def mark_pending(self):
         """Mark task as pending and clear completion timestamp"""
         self.status = 'pending'
         self.completed_at = None
         self.save(update_fields=['status', 'completed_at', 'updated_at'])
+
+    @property
+    def is_checklist_completed(self):
+        """Return True when checklist exists and all items are completed."""
+        if not self.checklist:
+            return False
+        return all(
+            isinstance(item, dict) and bool(item.get('completed', False))
+            for item in self.checklist
+        )
 
 # -------------------------------
 # Communication Hub Models

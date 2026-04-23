@@ -66,17 +66,19 @@
     selectedIds: [], 
     openMassDelete: false,
     selectAll: false,
-    toggleSelectAll() {
-        const checkboxes = document.querySelectorAll('.proposal-checkbox');
-        if (this.selectAll) {
-            this.selectedIds = Array.from(checkboxes).map(cb => cb.value);
-        } else {
-            this.selectedIds = [];
-        }
+    toggleSelectAll(checked) {
+        const checkboxes = [...document.querySelectorAll('.proposal-checkbox')];
+        checkboxes.forEach((cb) => {
+            cb.checked = checked;
+        });
+        this.selectedIds = checked ? checkboxes.map(cb => String(cb.value)) : [];
+        this.selectAll = checked;
     },
     updateSelectAll() {
-        const checkboxes = document.querySelectorAll('.proposal-checkbox');
-        this.selectAll = this.selectedIds.length === checkboxes.length && checkboxes.length > 0;
+        const checkboxes = [...document.querySelectorAll('.proposal-checkbox')];
+        const checkedBoxes = checkboxes.filter(cb => cb.checked);
+        this.selectedIds = checkedBoxes.map(cb => String(cb.value));
+        this.selectAll = checkedBoxes.length === checkboxes.length && checkboxes.length > 0;
     }
 }">
 
@@ -132,8 +134,8 @@
             <thead class="bg-gray-100 text-gray-700">
                 <tr>
                     <th class="px-2 py-2 w-10">
-                        <input type="checkbox" x-model="selectAll" @change="toggleSelectAll()" 
-                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <input type="checkbox" :checked="selectAll" @change="toggleSelectAll($event.target.checked)" @click.stop @mousedown.stop
+                            class="proposal-select-all rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                     </th>
                     <th class="px-4 py-2">#</th>
                     <th class="px-4 py-2">Title</th>
@@ -148,12 +150,23 @@
             </thead>
             <tbody>
                 {% for proposal in proposals %}
-                <tr>
+                <tr class="cursor-pointer hover:bg-blue-50 transition"
+                    data-proposal-row="true"
+                    data-proposal-id="{{ proposal.id }}"
+                    data-proposal-title="{{ proposal.title|escapejs }}"
+                    data-proposal-description="{{ proposal.description|default:''|escapejs }}"
+                    data-proposal-proponent="{{ proposal.proponent.full_name|default:'-'|escapejs }}"
+                    data-proposal-beneficiary="{{ proposal.beneficiary.full_name|default:'-'|escapejs }}"
+                    data-proposal-location="{{ proposal.location|default:'-'|escapejs }}"
+                    data-proposal-municipality="{{ proposal.municipality|default:''|escapejs }}"
+                    data-proposal-province="{{ proposal.province|default:''|escapejs }}"
+                    data-proposal-amount="{{ proposal.proposed_amount|floatformat:2 }}"
+                    data-proposal-status="{{ proposal.get_status_display|default:proposal.status|escapejs }}"
+                    data-proposal-budget="{% if proposal.budget %}{{ proposal.budget.fund_source|escapejs }}{% else %}-{% endif %}">
                     <td class="px-2 py-2">
                         <input type="checkbox" class="proposal-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
                             value="{{ proposal.id }}"
-                            x-model="selectedIds"
-                            @change="updateSelectAll()">
+                            @change="updateSelectAll()" @click.stop @mousedown.stop>
                     </td>
                     <td class="px-4 py-2">{{ forloop.counter }}</td>
                     <td class="px-4 py-2">{{ proposal.title }}</td>
@@ -959,6 +972,73 @@
         </div>
     </div>
 
+    <!-- Proposal Details Modal -->
+    <div id="proposalInfoModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-y-auto" style="display: none;">
+        <div class="min-h-full flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-4xl rounded-xl shadow-xl overflow-hidden" onclick="event.stopPropagation()">
+                <div class="bg-gradient-to-r from-sky-700 to-blue-700 text-white px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xl font-bold" id="proposalInfoTitle">Proposal Details</h3>
+                        <p class="text-blue-100 text-sm" id="proposalInfoMeta">Review proposal information and attachments</p>
+                    </div>
+                    <button type="button" onclick="closeProposalInfoModal()" class="text-white hover:text-blue-200">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+                <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-5 max-h-[78vh] overflow-y-auto">
+                    <div class="space-y-3">
+                        <div class="rounded-lg border border-slate-200 p-3 bg-slate-50">
+                            <p class="text-xs uppercase tracking-wide text-slate-500">Title</p>
+                            <p id="proposalInfoTitleText" class="text-sm font-semibold text-slate-800"></p>
+                        </div>
+                        <div class="rounded-lg border border-slate-200 p-3 bg-slate-50">
+                            <p class="text-xs uppercase tracking-wide text-slate-500">Description</p>
+                            <p id="proposalInfoDescription" class="text-sm text-slate-700 whitespace-pre-wrap"></p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="rounded-lg border border-slate-200 p-3">
+                                <p class="text-xs text-slate-500">Proponent</p>
+                                <p id="proposalInfoProponent" class="text-sm font-medium text-slate-800"></p>
+                            </div>
+                            <div class="rounded-lg border border-slate-200 p-3">
+                                <p class="text-xs text-slate-500">Beneficiary</p>
+                                <p id="proposalInfoBeneficiary" class="text-sm font-medium text-slate-800"></p>
+                            </div>
+                            <div class="rounded-lg border border-slate-200 p-3">
+                                <p class="text-xs text-slate-500">Proposed Amount</p>
+                                <p id="proposalInfoAmount" class="text-sm font-semibold text-slate-800"></p>
+                            </div>
+                            <div class="rounded-lg border border-slate-200 p-3">
+                                <p class="text-xs text-slate-500">Status</p>
+                                <p id="proposalInfoStatus" class="text-sm font-semibold text-slate-800"></p>
+                            </div>
+                        </div>
+                        <div class="rounded-lg border border-slate-200 p-3">
+                            <p class="text-xs text-slate-500">Location</p>
+                            <p id="proposalInfoLocation" class="text-sm text-slate-700"></p>
+                            <p id="proposalInfoBudget" class="mt-2 text-xs text-slate-500"></p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="rounded-lg border border-slate-200 p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="text-sm font-semibold text-slate-800">Attachments</p>
+                                <p id="proposalInfoAttachmentCount" class="text-xs text-slate-500"></p>
+                            </div>
+                            <div id="proposalInfoAttachmentList" class="space-y-2 max-h-40 overflow-y-auto"></div>
+                        </div>
+                        <div class="rounded-lg border border-slate-200 p-3 bg-slate-50">
+                            <p class="text-sm font-semibold text-slate-800 mb-2">Mini Viewer</p>
+                            <div id="proposalInfoViewer" class="h-72 bg-white border border-slate-200 rounded-lg overflow-hidden flex items-center justify-center text-sm text-slate-500">
+                                Select an attachment to preview.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <!-- Project Details Modal -->
@@ -1320,10 +1400,62 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     $(document).ready(function () {
-        $('#proposalsTable').DataTable();
+        const proposalsDt = $('#proposalsTable').DataTable({
+            columnDefs: [
+                { orderable: false, targets: [0, 9] }
+            ]
+        });
 
         // Use event delegation for DataTables compatibility
         const table = document.getElementById('proposalsTable');
+
+        function getBulkState() {
+            const container = document.querySelector('.container[x-data]');
+            if (!container) return null;
+            if (typeof Alpine !== 'undefined' && Alpine.$data) {
+                try { return Alpine.$data(container); } catch (_) {}
+            }
+            if (container.__x && container.__x.$data) return container.__x.$data;
+            if (container._x_dataStack && container._x_dataStack[0]) return container._x_dataStack[0];
+            return null;
+        }
+
+        function syncProposalsSelection() {
+            const state = getBulkState();
+            if (!state) return;
+            const all = proposalsDt.rows({ search: 'applied' }).nodes().to$().find('.proposal-checkbox');
+            const checked = all.filter(':checked');
+            state.selectedIds = checked.map((_, el) => String(el.value)).get();
+            state.selectAll = all.length > 0 && checked.length === all.length;
+            const header = table.querySelector('.proposal-select-all');
+            if (header) header.checked = state.selectAll;
+        }
+
+        table.addEventListener('change', function(e) {
+            if (e.target.matches('.proposal-select-all')) {
+                proposalsDt.rows({ search: 'applied' }).nodes().to$().find('.proposal-checkbox').prop('checked', e.target.checked);
+                syncProposalsSelection();
+                return;
+            }
+            if (e.target.matches('.proposal-checkbox')) {
+                syncProposalsSelection();
+            }
+        });
+
+        proposalsDt.on('draw', function() {
+            syncProposalsSelection();
+        });
+
+        table.addEventListener('click', function(e) {
+            if (e.target.closest('input, button, a, .tooltip-container')) {
+                return;
+            }
+            const row = e.target.closest('tr[data-proposal-row]');
+            if (!row) {
+                return;
+            }
+            window.openProposalInfoModal(row);
+        });
 
         // Approve button handler (delegated)
         table.addEventListener('click', function(e) {
@@ -1647,11 +1779,113 @@ document.addEventListener("DOMContentLoaded", function () {
             document.getElementById('projectModal').classList.add('hidden');
         };
 
+        const proposalDocumentsMap = (() => {
+            try {
+                const source = document.getElementById('proposalDocumentsData');
+                return source ? JSON.parse(source.textContent) : {};
+            } catch (_) {
+                return {};
+            }
+        })();
+
+        function isPreviewableImage(filename) {
+            return /\.(png|jpe?g|gif|webp)$/i.test(filename || '');
+        }
+
+        function isPreviewablePdf(filename) {
+            return /\.pdf$/i.test(filename || '');
+        }
+
+        function renderProposalMiniViewer(url, filename) {
+            const viewer = document.getElementById('proposalInfoViewer');
+            if (!viewer) {
+                return;
+            }
+            if (isPreviewablePdf(filename)) {
+                viewer.innerHTML = `<iframe src="${url}" class="w-full h-full border-0" title="${filename}"></iframe>`;
+                return;
+            }
+            if (isPreviewableImage(filename)) {
+                viewer.innerHTML = `<img src="${url}" alt="${filename}" class="max-w-full max-h-full object-contain" />`;
+                return;
+            }
+            viewer.innerHTML = `
+                <div class="text-center px-4">
+                    <p class="font-medium text-slate-700 mb-1">Preview is not available for this file type.</p>
+                    <a href="${url}" target="_blank" class="text-blue-600 hover:text-blue-800 underline">Open ${filename}</a>
+                </div>
+            `;
+        }
+
+        window.openProposalInfoModal = function(row) {
+            const modal = document.getElementById('proposalInfoModal');
+            if (!modal) {
+                return;
+            }
+            const proposalId = row.dataset.proposalId;
+            const docsData = proposalDocumentsMap[proposalId] ? proposalDocumentsMap[proposalId].documents : [];
+
+            document.getElementById('proposalInfoTitleText').textContent = row.dataset.proposalTitle || '-';
+            document.getElementById('proposalInfoDescription').textContent = row.dataset.proposalDescription || 'No description provided.';
+            document.getElementById('proposalInfoProponent').textContent = row.dataset.proposalProponent || '-';
+            document.getElementById('proposalInfoBeneficiary').textContent = row.dataset.proposalBeneficiary || '-';
+            document.getElementById('proposalInfoAmount').textContent = `₱${Number(row.dataset.proposalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('proposalInfoStatus').textContent = row.dataset.proposalStatus || '-';
+
+            const municipality = row.dataset.proposalMunicipality || '';
+            const province = row.dataset.proposalProvince || '';
+            const location = row.dataset.proposalLocation || '-';
+            const combinedLocation = municipality || province
+                ? `${municipality}${municipality && province ? ', ' : ''}${province}`
+                : location;
+            document.getElementById('proposalInfoLocation').textContent = combinedLocation || '-';
+            document.getElementById('proposalInfoBudget').textContent = `Budget Source: ${row.dataset.proposalBudget || '-'}`;
+            document.getElementById('proposalInfoAttachmentCount').textContent = `${docsData.length} file${docsData.length !== 1 ? 's' : ''}`;
+
+            const attachmentList = document.getElementById('proposalInfoAttachmentList');
+            if (docsData.length === 0) {
+                attachmentList.innerHTML = '<p class="text-xs text-slate-500">No attachments uploaded for this proposal.</p>';
+                document.getElementById('proposalInfoViewer').innerHTML = 'No attachment selected.';
+            } else {
+                attachmentList.innerHTML = docsData.map((doc, idx) => `
+                    <button type="button" data-doc-index="${idx}" class="proposal-doc-btn w-full text-left px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition text-sm flex items-center justify-between gap-2">
+                        <span class="truncate">${doc.filename}</span>
+                        <span class="material-icons text-base text-slate-500">visibility</span>
+                    </button>
+                `).join('');
+
+                attachmentList.querySelectorAll('.proposal-doc-btn').forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        const idx = Number(btn.dataset.docIndex);
+                        const selected = docsData[idx];
+                        if (selected) {
+                            renderProposalMiniViewer(selected.url, selected.filename);
+                        }
+                    });
+                });
+
+                renderProposalMiniViewer(docsData[0].url, docsData[0].filename);
+            }
+
+            modal.style.display = 'block';
+        };
+
+        window.closeProposalInfoModal = function() {
+            const modal = document.getElementById('proposalInfoModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        };
+
         // Close modal when clicking outside
         document.addEventListener('click', (e) => {
             const modal = document.getElementById('projectModal');
             if (e.target === modal) {
                 closeProjectModal();
+            }
+            const proposalModal = document.getElementById('proposalInfoModal');
+            if (e.target === proposalModal) {
+                closeProposalInfoModal();
             }
         });
         

@@ -22,16 +22,19 @@
     deleteUser: {},
     selectedIds: [],
     selectAll: false,
-    toggleSelectAll() {
-        if (this.selectAll) {
-            this.selectedIds = [...document.querySelectorAll('.user-checkbox')].map(cb => cb.value);
-        } else {
-            this.selectedIds = [];
-        }
+    toggleSelectAll(checked) {
+        const allCheckboxes = [...document.querySelectorAll('.user-checkbox')];
+        allCheckboxes.forEach((cb) => {
+            cb.checked = checked;
+        });
+        this.selectedIds = checked ? allCheckboxes.map(cb => String(cb.value)) : [];
+        this.selectAll = checked;
     },
     updateSelectAll() {
-        const allCheckboxes = document.querySelectorAll('.user-checkbox');
-        this.selectAll = this.selectedIds.length === allCheckboxes.length && allCheckboxes.length > 0;
+        const allCheckboxes = [...document.querySelectorAll('.user-checkbox')];
+        const checkedBoxes = allCheckboxes.filter(cb => cb.checked);
+        this.selectedIds = checkedBoxes.map(cb => String(cb.value));
+        this.selectAll = checkedBoxes.length === allCheckboxes.length && allCheckboxes.length > 0;
     }
 }">
 
@@ -71,7 +74,7 @@
             <thead class="bg-gray-100 text-gray-700">
                 <tr>
                     <th class="px-4 py-2">
-                        <input type="checkbox" x-model="selectAll" @change="toggleSelectAll()" class="w-4 h-4 rounded border-gray-300">
+                        <input type="checkbox" :checked="selectAll" @change="toggleSelectAll($event.target.checked)" @click.stop @mousedown.stop class="user-select-all w-4 h-4 rounded border-gray-300">
                     </th>
                     <th class="px-4 py-2">#</th>
                     <th class="px-4 py-2">Username</th>
@@ -86,10 +89,10 @@
                 {% for user in users %}
                 <tr>
                     <td class="px-4 py-2">
-                        <input type="checkbox" value="{{ user.id }}" x-model="selectedIds" @change="updateSelectAll()" class="user-checkbox w-4 h-4 rounded border-gray-300">
+                        <input type="checkbox" value="{{ user.id }}" @change="updateSelectAll()" @click.stop @mousedown.stop class="user-checkbox w-4 h-4 rounded border-gray-300">
                     </td>
                     <td class="px-4 py-2">{{ forloop.counter }}</td>
-                    <td class="px-4 py-2">{{ user.username }}</td>
+                    <td class="px-4 py-2">{{ user.username|default:user.first_name|default:user.email }}</td>
                     <td class="px-4 py-2">{{ user.full_name }}</td>
                     <td class="px-4 py-2">{{ user.email }}</td>
                     <td class="px-4 py-2">{{ user.get_role_display }}</td>
@@ -110,7 +113,7 @@
                     <td class="px-4 py-2 text-center">
                         <div class="flex justify-center gap-2">
                             <button type="button"
-                                onclick="window.openUserEditModal({id: {{ user.id }}, first_name: '{{ user.first_name|escapejs }}', middle_name: '{{ user.middle_name|escapejs }}', last_name: '{{ user.last_name|escapejs }}', email: '{{ user.email }}', role: '{{ user.role }}', profile_picture: '{% if user.profile_picture %}{{ user.profile_picture.url }}{% else %}{% endif %}', tna_status: '{{ user.tna_status }}', tna_completion_date: '{{ user.tna_completion_date|date:"Y-m-d"|default:"" }}', tna_notes: '{{ user.tna_notes|escapejs|default:"" }}'})"
+                                onclick="window.openUserEditModal({id: {{ user.id }}, username: '{{ user.username|escapejs }}', first_name: '{{ user.first_name|escapejs }}', middle_name: '{{ user.middle_name|escapejs }}', last_name: '{{ user.last_name|escapejs }}', email: '{{ user.email }}', role: '{{ user.role }}', profile_picture: '{% if user.profile_picture %}{{ user.profile_picture.url }}{% else %}{% endif %}', tna_status: '{{ user.tna_status }}', tna_completion_date: '{{ user.tna_completion_date|date:"Y-m-d"|default:"" }}', tna_notes: '{{ user.tna_notes|escapejs|default:"" }}'})"
                                 class="px-3 py-1 text-white bg-yellow-500 rounded hover:bg-yellow-600">
                                 Edit
                             </button>
@@ -151,6 +154,11 @@
 
 
                 <div class="grid grid-cols-1 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium">Username</label>
+                        <input type="text" name="username" class="w-full border rounded-lg px-3 py-2" placeholder="e.g. juan_dela_cruz">
+                        <p class="text-xs text-gray-500 mt-1">If empty, the system uses your first name (or email prefix) as fallback.</p>
+                    </div>
                     <div>
                         <label class="block text-sm font-medium">Email</label>
                         <input type="email" name="email" class="w-full border rounded-lg px-3 py-2" required>
@@ -268,7 +276,10 @@
 
 
                 <div class="grid grid-cols-1 gap-3">
-                 
+                    <div>
+                        <label class="block text-sm font-medium">Username</label>
+                        <input type="text" name="username" x-model="editUser.username" class="w-full border rounded-lg px-3 py-2">
+                    </div>
                     <div>
                         <label class="block text-sm font-medium">Email</label>
                         <input type="email" name="email" x-model="editUser.email" class="w-full border rounded-lg px-3 py-2" required>
@@ -519,7 +530,49 @@
 
 <script>
     $(document).ready(function () {
-        $('#usersTable').DataTable();
+        const usersDt = $('#usersTable').DataTable({
+            columnDefs: [
+                { orderable: false, targets: [0, 7] }
+            ]
+        });
+        const table = document.getElementById('usersTable');
+
+        function getBulkState() {
+            const container = document.querySelector('.container[x-data]');
+            if (!container) return null;
+            if (typeof Alpine !== 'undefined' && Alpine.$data) {
+                try { return Alpine.$data(container); } catch (_) {}
+            }
+            if (container.__x && container.__x.$data) return container.__x.$data;
+            if (container._x_dataStack && container._x_dataStack[0]) return container._x_dataStack[0];
+            return null;
+        }
+
+        function syncUsersSelection() {
+            const state = getBulkState();
+            if (!state) return;
+            const all = usersDt.rows({ search: 'applied' }).nodes().to$().find('.user-checkbox');
+            const checked = all.filter(':checked');
+            state.selectedIds = checked.map((_, el) => String(el.value)).get();
+            state.selectAll = all.length > 0 && checked.length === all.length;
+            const header = table.querySelector('.user-select-all');
+            if (header) header.checked = state.selectAll;
+        }
+
+        table.addEventListener('change', function(e) {
+            if (e.target.matches('.user-select-all')) {
+                usersDt.rows({ search: 'applied' }).nodes().to$().find('.user-checkbox').prop('checked', e.target.checked);
+                syncUsersSelection();
+                return;
+            }
+            if (e.target.matches('.user-checkbox')) {
+                syncUsersSelection();
+            }
+        });
+
+        usersDt.on('draw', function() {
+            syncUsersSelection();
+        });
     });
 </script>
 {% endblock %}
