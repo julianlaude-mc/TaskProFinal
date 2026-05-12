@@ -1,0 +1,721 @@
+{% extends "administrator/base.html" %}
+{% load humanize %}
+
+{% block title %}Forecast{% endblock %}
+{% block page-title %}Forecast{% endblock %}
+
+{% block content %}
+<style>
+  .forecast-page {
+    color: #0f172a;
+    background:
+      radial-gradient(circle at 10% 0%, rgba(37, 99, 235, .08), transparent 28rem),
+      linear-gradient(180deg, #f8fbff 0%, #f4f7fb 100%);
+  }
+  .forecast-page * {
+    letter-spacing: 0;
+  }
+  .forecast-panel {
+    background: rgba(255, 255, 255, .92);
+    border: 1px solid rgba(203, 213, 225, .78);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, .055);
+  }
+  .forecast-kpi {
+    background: linear-gradient(180deg, #fff 0%, #fbfdff 100%);
+    border: 1px solid rgba(203, 213, 225, .78);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, .055);
+  }
+  .risk-meter {
+    background: conic-gradient(var(--risk-color) calc(var(--score) * 1%), #edf2f7 0);
+  }
+  .forecast-table {
+    table-layout: fixed;
+  }
+  .forecast-table tbody tr {
+    transition: background .18s ease, transform .18s ease;
+  }
+  .forecast-table tbody tr:hover {
+    background: #f8fbff;
+  }
+  .forecast-focus-row {
+    background: #eff6ff !important;
+    box-shadow: inset 4px 0 0 #2563eb;
+  }
+  .forecast-focus-card {
+    border-color: #2563eb !important;
+    box-shadow: 0 18px 44px rgba(37, 99, 235, .16) !important;
+  }
+  @media (max-width: 1100px) {
+    .forecast-desktop-table { display: none; }
+  }
+  @media (min-width: 1101px) {
+    .forecast-mobile-list { display: none; }
+  }
+  .forecast-review-modal {
+    background: rgba(15, 23, 42, .44);
+    backdrop-filter: blur(8px);
+  }
+  .forecast-review-card {
+    background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+    border: 1px solid rgba(203, 213, 225, .92);
+    box-shadow: 0 28px 70px rgba(15, 23, 42, .26);
+  }
+  .data-quality-card[open] {
+    border-color: rgba(37, 99, 235, .35);
+    box-shadow: 0 18px 44px rgba(37, 99, 235, .10);
+  }
+  .data-quality-card[open] .expand-icon {
+    transform: rotate(180deg);
+  }
+</style>
+
+<div class="forecast-page -m-6 min-h-[calc(100vh-5rem)] p-4 sm:p-5 xl:p-6" data-forecast-ui="compact-v2">
+  <header class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Project Risk Forecast</h1>
+      <p class="mt-1 text-sm text-slate-500">Prioritize projects by delay risk, review signals, and take action early.</p>
+    </div>
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <a href="{% url 'administrator_forecast_url' %}?level={{ selected_level }}&refresh=1&notify=1&per_page={{ per_page }}"
+         class="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:text-blue-700">
+        <span class="material-icons text-[18px]">sync</span>
+        Refresh Forecasts
+      </a>
+      <a href="{% url 'administrator_projects_url' %}"
+         class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">
+        <span class="material-icons text-[18px]">business_center</span>
+        Projects
+      </a>
+    </div>
+  </header>
+
+  <section class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    <article class="forecast-kpi rounded-2xl p-5">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-xs font-semibold text-slate-500">Flagged Workload</p>
+          <div class="mt-2 flex items-center gap-3">
+            <span class="text-3xl font-semibold tracking-tight text-slate-950">{{ flagged_count }}</span>
+            <span class="rounded-full bg-red-50 px-3 py-1 text-[11px] font-semibold text-red-700">Active alerts</span>
+          </div>
+        </div>
+        <span class="material-icons rounded-2xl bg-red-50 p-3 text-red-500">campaign</span>
+      </div>
+      <div class="mt-5 grid grid-cols-3 gap-2 text-center">
+        <div class="rounded-2xl bg-orange-50 px-2 py-3">
+          <p class="text-lg font-semibold text-orange-600">{{ at_risk_count }}</p>
+          <p class="text-[11px] font-medium text-orange-600">At Risk</p>
+        </div>
+        <div class="rounded-2xl bg-amber-50 px-2 py-3">
+          <p class="text-lg font-semibold text-amber-600">{{ likely_delayed_count }}</p>
+          <p class="text-[11px] font-medium text-amber-600">Likely</p>
+        </div>
+        <div class="rounded-2xl bg-red-50 px-2 py-3">
+          <p class="text-lg font-semibold text-red-600">{{ already_delayed_count }}</p>
+          <p class="text-[11px] font-medium text-red-600">Delayed</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="forecast-kpi rounded-2xl p-5">
+      <div class="flex justify-between gap-4">
+        <div>
+          <p class="text-xs font-semibold text-slate-500">Total Projects</p>
+          <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{{ projects_total }}</p>
+          <p class="mt-1 text-sm text-slate-500">Across all portfolios</p>
+        </div>
+        <span class="material-icons h-fit rounded-2xl bg-blue-50 p-3 text-blue-600">folder</span>
+      </div>
+      <a href="{% url 'administrator_projects_url' %}" class="mt-6 inline-flex items-center gap-1 text-xs font-semibold text-blue-600">View all projects <span class="material-icons text-[15px]">arrow_forward</span></a>
+    </article>
+
+    <article class="forecast-kpi rounded-2xl p-5">
+      <div class="flex justify-between gap-4">
+        <div>
+          <p class="text-xs font-semibold text-slate-500">On Track</p>
+          <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{{ on_track_count }}</p>
+          <p class="mt-1 text-sm text-slate-500">{{ on_track_percent }}% of total projects</p>
+        </div>
+        <span class="material-icons h-fit rounded-2xl bg-emerald-50 p-3 text-emerald-600">check_circle</span>
+      </div>
+      <div class="mt-7 h-1.5 rounded-full bg-slate-100">
+        <div class="h-1.5 rounded-full bg-emerald-400" style="width: {{ on_track_percent }}%"></div>
+      </div>
+    </article>
+
+    <article class="forecast-kpi rounded-2xl p-5">
+      <div class="flex justify-between gap-4">
+        <div>
+          <p class="text-xs font-semibold text-slate-500">Average Risk</p>
+          <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{{ avg_score }}%</p>
+          <p class="mt-1 text-sm text-slate-500">Across all projects</p>
+        </div>
+        <span class="material-icons h-fit rounded-2xl bg-violet-50 p-3 text-violet-600">trending_up</span>
+      </div>
+      <div class="mt-7 h-1.5 rounded-full bg-slate-100">
+        <div class="h-1.5 rounded-full bg-violet-500" style="width: {{ avg_score }}%"></div>
+      </div>
+    </article>
+
+    <article class="forecast-kpi rounded-2xl p-5">
+      <div class="flex items-start gap-4">
+        <span class="material-icons rounded-2xl bg-slate-100 p-3 text-slate-700">schedule</span>
+        <div>
+          <p class="text-xs font-semibold text-slate-500">Last Forecast Update</p>
+          <p class="mt-4 text-sm font-semibold text-slate-950">{{ last_refresh|date:"M d, h:i A" }}</p>
+          <p class="mt-1 text-xs text-slate-500">Auto refreshed</p>
+        </div>
+      </div>
+      <a href="{% url 'administrator_forecast_url' %}?level={{ selected_level }}&notify=0&per_page={{ per_page }}" class="mt-6 inline-flex items-center gap-1 text-xs font-semibold text-blue-600">View history <span class="material-icons text-[15px]">arrow_forward</span></a>
+    </article>
+  </section>
+
+  <section class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <article class="forecast-panel rounded-2xl p-4">
+      <p class="text-xs font-semibold uppercase text-slate-500">Review open</p>
+      <p class="mt-2 text-2xl font-semibold text-slate-950">{{ review_open_count }}</p>
+      <p class="mt-1 text-xs text-slate-500">Needs first admin action</p>
+    </article>
+    <article class="forecast-panel rounded-2xl p-4">
+      <p class="text-xs font-semibold uppercase text-blue-500">Acknowledged</p>
+      <p class="mt-2 text-2xl font-semibold text-blue-700">{{ review_acknowledged_count }}</p>
+      <p class="mt-1 text-xs text-slate-500">Risk seen by admin</p>
+    </article>
+    <article class="forecast-panel rounded-2xl p-4">
+      <p class="text-xs font-semibold uppercase text-violet-500">In review</p>
+      <p class="mt-2 text-2xl font-semibold text-violet-700">{{ review_in_review_count }}</p>
+      <p class="mt-1 text-xs text-slate-500">Assigned or scheduled</p>
+    </article>
+    <article class="forecast-panel rounded-2xl p-4">
+      <p class="text-xs font-semibold uppercase text-emerald-500">Resolved</p>
+      <p class="mt-2 text-2xl font-semibold text-emerald-700">{{ review_resolved_count }}</p>
+      <p class="mt-1 text-xs text-slate-500">Closed forecast reviews</p>
+    </article>
+    <article class="forecast-panel rounded-2xl p-4">
+      <p class="text-xs font-semibold uppercase text-red-500">Follow-ups due</p>
+      <p class="mt-2 text-2xl font-semibold text-red-700">{{ due_followups_count }}</p>
+      <p class="mt-1 text-xs text-slate-500">Due today or overdue</p>
+    </article>
+  </section>
+
+  <section class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[17rem_minmax(0,1fr)]">
+    <aside class="forecast-panel rounded-2xl p-4 xl:sticky xl:top-24 xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto">
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="text-base font-semibold text-slate-950">Risk Views</h2>
+          <p class="mt-1 text-xs text-slate-500">Filter the forecast board</p>
+        </div>
+        <span class="material-icons rounded-xl bg-blue-50 p-2 text-blue-600">tune</span>
+      </div>
+      <nav class="mt-5 space-y-2">
+        <a href="?level=flagged&notify=0&per_page={{ per_page }}" class="flex items-center justify-between rounded-xl border-l-4 px-3 py-3 text-sm font-semibold transition {% if selected_level == 'flagged' %}border-blue-600 bg-blue-50 text-blue-700{% else %}border-transparent bg-white text-slate-600 hover:bg-slate-50{% endif %}">
+          <span>Flagged</span><span>{{ flagged_count }}</span>
+        </a>
+        <a href="?level=all&notify=0&per_page={{ per_page }}" class="flex items-center justify-between rounded-xl border-l-4 px-3 py-3 text-sm font-semibold transition {% if selected_level == 'all' %}border-blue-600 bg-blue-50 text-blue-700{% else %}border-transparent bg-white text-slate-600 hover:bg-slate-50{% endif %}">
+          <span>All Projects</span><span>{{ projects_total }}</span>
+        </a>
+        <a href="?level=already_delayed&notify=0&per_page={{ per_page }}" class="flex items-center justify-between rounded-xl border-l-4 px-3 py-3 text-sm font-semibold transition {% if selected_level == 'already_delayed' %}border-red-500 bg-red-50 text-red-700{% else %}border-transparent bg-white text-red-600 hover:bg-red-50{% endif %}">
+          <span>Already Delayed</span><span>{{ already_delayed_count }}</span>
+        </a>
+        <a href="?level=likely_delayed&notify=0&per_page={{ per_page }}" class="flex items-center justify-between rounded-xl border-l-4 px-3 py-3 text-sm font-semibold transition {% if selected_level == 'likely_delayed' %}border-amber-500 bg-amber-50 text-amber-700{% else %}border-transparent bg-white text-amber-600 hover:bg-amber-50{% endif %}">
+          <span>Likely</span><span>{{ likely_delayed_count }}</span>
+        </a>
+        <a href="?level=at_risk&notify=0&per_page={{ per_page }}" class="flex items-center justify-between rounded-xl border-l-4 px-3 py-3 text-sm font-semibold transition {% if selected_level == 'at_risk' %}border-orange-500 bg-orange-50 text-orange-700{% else %}border-transparent bg-white text-orange-600 hover:bg-orange-50{% endif %}">
+          <span>At Risk</span><span>{{ at_risk_count }}</span>
+        </a>
+        <a href="?level=on_track&notify=0&per_page={{ per_page }}" class="flex items-center justify-between rounded-xl border-l-4 px-3 py-3 text-sm font-semibold transition {% if selected_level == 'on_track' %}border-emerald-500 bg-emerald-50 text-emerald-700{% else %}border-transparent bg-white text-emerald-600 hover:bg-emerald-50{% endif %}">
+          <span>On Track</span><span>{{ on_track_count }}</span>
+        </a>
+      </nav>
+    </aside>
+
+    <div class="forecast-panel rounded-2xl">
+      <div class="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 class="text-base font-semibold text-slate-950">Risk-Sorted Projects</h2>
+          <p class="mt-1 text-xs text-slate-500">Sorted by risk level, score, days remaining, and target end date.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+        <a href="{% url 'administrator_forecast_url' %}?level={{ selected_level }}&refresh=1&notify=1&per_page={{ per_page }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
+            <span class="material-icons text-[17px]">notifications_none</span>
+            Notify
+          </a>
+          <a href="{% url 'administrator_projects_url' %}" class="inline-flex h-10 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-blue-700">Manage Projects</a>
+        </div>
+      </div>
+
+      <div class="forecast-desktop-table">
+        <table class="forecast-table w-full text-sm">
+          <colgroup>
+            <col class="w-[9rem]">
+            <col class="w-[24%]">
+            <col class="w-[9.5rem]">
+            <col class="w-[11.5rem]">
+            <col class="w-[10.5rem]">
+            <col>
+            <col class="w-[10.5rem]">
+          </colgroup>
+          <thead class="bg-slate-50">
+            <tr>
+              <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Risk Score</th>
+              <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Project</th>
+              <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Location</th>
+              <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Progress</th>
+              <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Timeline</th>
+              <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Reason</th>
+              <th class="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-500">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for assessment in assessments %}
+            <tr id="forecast-project-{{ assessment.project.pk }}" class="{% if focus_project_id == assessment.project.pk %}forecast-focus-row{% endif %}">
+              <td class="px-5 py-4">
+                <div class="flex items-center gap-3">
+                  <div class="risk-meter grid h-11 w-11 shrink-0 place-items-center rounded-full p-[3px]"
+                       style="--score: {{ assessment.score }}; --risk-color: {% if assessment.level == 'already_delayed' %}#ef4444{% elif assessment.level == 'likely_delayed' %}#f59e0b{% elif assessment.level == 'at_risk' %}#fb923c{% else %}#10b981{% endif %};">
+                    <div class="grid h-full w-full place-items-center rounded-full bg-white text-[11px] font-semibold text-slate-950">{{ assessment.score }}%</div>
+                  </div>
+                  <span class="rounded-xl px-2.5 py-1 text-[11px] font-semibold leading-tight
+                    {% if assessment.level == 'already_delayed' %}bg-red-50 text-red-700
+                    {% elif assessment.level == 'likely_delayed' %}bg-amber-50 text-amber-700
+                    {% elif assessment.level == 'at_risk' %}bg-orange-50 text-orange-700
+                    {% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                    {{ assessment.get_level_display }}
+                  </span>
+                </div>
+                <p class="mt-2 text-[11px] font-medium text-slate-500">Review: {{ assessment.get_review_status_display }}</p>
+              </td>
+              <td class="px-5 py-4">
+                <p class="line-clamp-2 text-xs font-semibold leading-5 text-slate-950">{{ assessment.project.project_title|default:"Untitled Project" }}</p>
+                <p class="mt-1 truncate text-[11px] text-blue-600">{{ assessment.project.project_code|default:"No project code" }}{% if assessment.project.fund_source %} | {{ assessment.project.fund_source }}{% endif %}</p>
+              </td>
+              <td class="px-5 py-4">
+                <div class="inline-flex min-w-32 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                  <span class="material-icons text-[18px] text-blue-600">location_on</span>
+                  <div>
+                    <p class="text-[11px] font-semibold text-slate-900">{{ assessment.project.mun|default:"Unspecified" }}</p>
+                    <p class="text-[11px] text-slate-500">{{ assessment.project.province|default:"Biliran" }}</p>
+                  </div>
+                </div>
+              </td>
+              <td class="px-5 py-4">
+                <div class="flex items-center gap-3">
+                  <span class="text-sm font-semibold text-slate-950">{{ assessment.actual_progress }}%</span>
+                  <span class="text-[11px] text-slate-400">of {{ assessment.expected_progress }}%</span>
+                </div>
+                <div class="mt-2 h-2 rounded-full bg-slate-100">
+                  <div class="h-2 rounded-full bg-blue-500" style="width: {{ assessment.actual_progress }}%"></div>
+                </div>
+              </td>
+              <td class="px-5 py-4">
+                <p class="text-[11px] font-medium text-slate-700">{{ assessment.project.project_start|date:"M d, Y"|default:"No start" }} -</p>
+                <p class="text-[11px] font-medium text-slate-700">{{ assessment.project.project_end|date:"M d, Y"|default:"No end" }}</p>
+                <p class="mt-1 text-[11px] {% if assessment.days_remaining < 0 %}text-red-500{% else %}text-slate-500{% endif %}">
+                  {% if assessment.days_remaining is not None %}{{ assessment.days_remaining }} day(s){% else %}Timeline incomplete{% endif %}
+                </p>
+              </td>
+              <td class="px-5 py-4">
+                <p class="line-clamp-3 text-xs leading-5 text-slate-600">{{ assessment.reasons.0|default:"No major delay indicators found." }}</p>
+              </td>
+              <td class="px-5 py-4 text-right">
+                <div class="forecast-actions inline-flex items-start justify-end gap-1.5">
+                  <a href="{% url 'administrator_projects_detail_url' assessment.project.pk %}" class="inline-flex h-9 items-center rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">View</a>
+                  {% if assessment.level != 'on_track' %}
+                  <form method="post" action="{% url 'administrator_project_issue_extension_request_url' assessment.project.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="requested_extension_days" value="{{ assessment.suggested_extension_days }}">
+                    <button type="submit" class="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700" title="Issue extension request">
+                      <span class="material-icons text-[18px]">schedule_send</span>
+                    </button>
+                  </form>
+                  {% endif %}
+                  <button type="button"
+                          class="forecast-review-trigger grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                          title="Review forecast"
+                          data-review-url="{% url 'administrator_forecast_review_update_url' assessment.pk %}"
+                          data-project-title="{{ assessment.project.project_title|default:'Untitled Project'|escapejs }}"
+                          data-project-code="{{ assessment.project.project_code|default:'No project code'|escapejs }}"
+                          data-risk-label="{{ assessment.get_level_display|escapejs }}"
+                          data-risk-score="{{ assessment.score }}"
+                          data-review-status="{{ assessment.get_review_status_display|escapejs }}"
+                          data-reviewer-id="{{ assessment.assigned_reviewer_id|default:'' }}"
+                          data-follow-up="{{ assessment.follow_up_date|date:'Y-m-d' }}"
+                          data-notes="{{ assessment.review_notes|default:''|escapejs }}"
+                          data-resolve-action="{% if assessment.review_status == 'resolved' %}reopen{% else %}resolve{% endif %}"
+                          data-resolve-label="{% if assessment.review_status == 'resolved' %}Reopen Risk{% else %}Mark Risk Resolved{% endif %}">
+                    <span class="material-icons text-[18px]">rate_review</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="px-5 py-14 text-center">
+                <span class="material-icons text-5xl text-slate-300">verified</span>
+                <p class="mt-3 text-lg font-semibold text-slate-800">No projects in this forecast view</p>
+                <p class="text-sm text-slate-500">Try another risk filter or refresh the forecasts.</p>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="forecast-mobile-list grid grid-cols-1 gap-3 p-4">
+        {% for assessment in assessments %}
+        <article id="forecast-project-mobile-{{ assessment.project.pk }}" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm {% if focus_project_id == assessment.project.pk %}forecast-focus-card{% endif %}">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <span class="rounded-xl px-2.5 py-1 text-[11px] font-semibold
+                {% if assessment.level == 'already_delayed' %}bg-red-50 text-red-700
+                {% elif assessment.level == 'likely_delayed' %}bg-amber-50 text-amber-700
+                {% elif assessment.level == 'at_risk' %}bg-orange-50 text-orange-700
+                {% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                {{ assessment.get_level_display }}
+              </span>
+              <h3 class="mt-3 line-clamp-2 text-sm font-semibold text-slate-950">{{ assessment.project.project_title|default:"Untitled Project" }}</h3>
+              <p class="mt-1 text-xs text-slate-500">{{ assessment.project.mun|default:"Unspecified" }}, {{ assessment.project.province|default:"Biliran" }}</p>
+            </div>
+            <div class="risk-meter grid h-14 w-14 shrink-0 place-items-center rounded-full p-[3px]"
+                 style="--score: {{ assessment.score }}; --risk-color: {% if assessment.level == 'already_delayed' %}#ef4444{% elif assessment.level == 'likely_delayed' %}#f59e0b{% elif assessment.level == 'at_risk' %}#fb923c{% else %}#10b981{% endif %};">
+              <div class="grid h-full w-full place-items-center rounded-full bg-white text-[11px] font-semibold text-slate-950">{{ assessment.score }}%</div>
+            </div>
+          </div>
+          <div class="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3">
+            <div>
+              <p class="text-[11px] text-slate-500">Progress</p>
+              <p class="text-sm font-semibold text-slate-900">{{ assessment.actual_progress }}% of {{ assessment.expected_progress }}%</p>
+            </div>
+            <div>
+              <p class="text-[11px] text-slate-500">Timeline</p>
+              <p class="text-sm font-semibold text-slate-900">{{ assessment.days_remaining|default:"-" }} day(s)</p>
+            </div>
+          </div>
+          <p class="mt-3 text-xs leading-5 text-slate-600">{{ assessment.reasons.0|default:"No major delay indicators found." }}</p>
+          <div class="mt-4 flex gap-2">
+            <a href="{% url 'administrator_projects_detail_url' assessment.project.pk %}" class="inline-flex h-10 flex-1 items-center justify-center rounded-xl border border-slate-200 text-sm font-semibold text-slate-700">View</a>
+            <button type="button"
+                    class="forecast-review-trigger inline-flex h-10 flex-1 items-center justify-center rounded-xl border border-slate-200 text-sm font-semibold text-slate-700"
+                    data-review-url="{% url 'administrator_forecast_review_update_url' assessment.pk %}"
+                    data-project-title="{{ assessment.project.project_title|default:'Untitled Project'|escapejs }}"
+                    data-project-code="{{ assessment.project.project_code|default:'No project code'|escapejs }}"
+                    data-risk-label="{{ assessment.get_level_display|escapejs }}"
+                    data-risk-score="{{ assessment.score }}"
+                    data-review-status="{{ assessment.get_review_status_display|escapejs }}"
+                    data-reviewer-id="{{ assessment.assigned_reviewer_id|default:'' }}"
+                    data-follow-up="{{ assessment.follow_up_date|date:'Y-m-d' }}"
+                    data-notes="{{ assessment.review_notes|default:''|escapejs }}"
+                    data-resolve-action="{% if assessment.review_status == 'resolved' %}reopen{% else %}resolve{% endif %}"
+                    data-resolve-label="{% if assessment.review_status == 'resolved' %}Reopen Risk{% else %}Mark Risk Resolved{% endif %}">
+              Review
+            </button>
+            {% if assessment.level != 'on_track' %}
+            <form method="post" action="{% url 'administrator_project_issue_extension_request_url' assessment.project.pk %}" class="flex-1">
+              {% csrf_token %}
+              <input type="hidden" name="requested_extension_days" value="{{ assessment.suggested_extension_days }}">
+              <button type="submit" class="h-10 w-full rounded-xl bg-blue-600 text-sm font-semibold text-white">Extend</button>
+            </form>
+            {% endif %}
+          </div>
+        </article>
+        {% empty %}
+        <div class="rounded-2xl border border-dashed border-slate-300 p-8 text-center">
+          <span class="material-icons text-4xl text-slate-300">verified</span>
+          <p class="mt-2 font-semibold text-slate-800">No projects in this forecast view</p>
+        </div>
+        {% endfor %}
+      </div>
+
+      <footer class="flex flex-col gap-4 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <p class="text-xs text-slate-500">
+          Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ paginator.count }} projects
+        </p>
+        <div class="flex items-center justify-between gap-3 sm:justify-end">
+          <div class="flex items-center gap-1">
+            {% if page_obj.has_previous %}
+            <a href="?level={{ selected_level }}&notify=0&per_page={{ per_page }}&page={{ page_obj.previous_page_number }}" class="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">
+              <span class="material-icons text-[18px]">chevron_left</span>
+            </a>
+            {% endif %}
+            {% for number in paginator.page_range %}
+              {% if number <= 5 or number == paginator.num_pages or number == page_obj.number %}
+              <a href="?level={{ selected_level }}&notify=0&per_page={{ per_page }}&page={{ number }}" class="grid h-9 w-9 place-items-center rounded-xl text-xs font-semibold {% if number == page_obj.number %}bg-blue-600 text-white{% else %}border border-slate-200 text-slate-600 hover:bg-slate-50{% endif %}">{{ number }}</a>
+              {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <a href="?level={{ selected_level }}&notify=0&per_page={{ per_page }}&page={{ page_obj.next_page_number }}" class="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">
+              <span class="material-icons text-[18px]">chevron_right</span>
+            </a>
+            {% endif %}
+          </div>
+          <form method="get" class="flex items-center gap-2 text-xs text-slate-500">
+            <input type="hidden" name="level" value="{{ selected_level }}">
+            <input type="hidden" name="notify" value="0">
+            <span>Show</span>
+            <select name="per_page" onchange="this.form.submit()" class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none">
+              <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+              <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+              <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+            </select>
+            <span>per page</span>
+          </form>
+        </div>
+      </footer>
+    </div>
+  </section>
+
+  <section class="mt-4 forecast-panel rounded-2xl p-5">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h2 class="text-base font-semibold text-slate-950">Data Quality Panel</h2>
+        <p class="mt-1 text-xs text-slate-500">Records that weaken forecast accuracy and should be cleaned up before relying on automation.</p>
+      </div>
+      <span class="inline-flex w-fit items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+        <span class="material-icons text-[16px]">verified_user</span>
+        Forecast inputs
+      </span>
+    </div>
+    <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {% for item in data_quality_items %}
+      <details class="data-quality-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition">
+        <summary class="cursor-pointer list-none">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-xs font-semibold uppercase text-slate-500">{{ item.label }}</p>
+              <p class="mt-2 text-2xl font-semibold text-slate-950">{{ item.count }}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="material-icons rounded-2xl p-3
+                {% if item.tone == 'red' %}bg-red-50 text-red-600
+                {% elif item.tone == 'amber' %}bg-amber-50 text-amber-600
+                {% elif item.tone == 'blue' %}bg-blue-50 text-blue-600
+                {% elif item.tone == 'violet' %}bg-violet-50 text-violet-600
+                {% elif item.tone == 'emerald' %}bg-emerald-50 text-emerald-600
+                {% else %}bg-slate-100 text-slate-600{% endif %}">{{ item.icon }}</span>
+              <span class="expand-icon material-icons rounded-xl bg-slate-50 p-2 text-[18px] text-slate-500 transition">expand_more</span>
+            </div>
+          </div>
+          <p class="mt-2 text-xs leading-5 text-slate-500">{{ item.help }}</p>
+          <p class="mt-3 text-[11px] font-semibold text-blue-600">Click to view full list</p>
+        </summary>
+        <div class="mt-4 max-h-80 space-y-2 overflow-y-auto pr-1">
+          {% for project in item.projects %}
+          <a href="{% url 'administrator_projects_detail_url' project.pk %}" class="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-xs transition hover:bg-blue-50">
+            <span class="min-w-0 truncate font-semibold text-slate-700">{{ project.project_title|default:project.project_code|default:"Untitled Project" }}</span>
+            <span class="shrink-0 text-slate-400">{{ project.mun|default:"No location" }}</span>
+          </a>
+          {% empty %}
+          <p class="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">No records found.</p>
+          {% endfor %}
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+    <div class="forecast-panel rounded-2xl p-5">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-base font-semibold text-slate-950">Prediction Report</h2>
+          <p class="mt-1 text-xs text-slate-500">Portfolio-level analytics used to explain forecast decisions.</p>
+        </div>
+        <a href="{% url 'administrator_reports_url' %}" class="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">Reports</a>
+      </div>
+      <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div class="min-h-32 rounded-2xl bg-red-50 p-4">
+          <p class="text-[11px] font-semibold uppercase text-red-700">Overdue flagged</p>
+          <p class="mt-3 text-2xl font-semibold text-red-700">{{ overdue_flagged_count }}</p>
+          <p class="mt-2 text-xs leading-5 text-red-600">Flagged projects past target end date.</p>
+        </div>
+        <div class="min-h-32 rounded-2xl bg-amber-50 p-4">
+          <p class="text-[11px] font-semibold uppercase text-amber-700">Behind expected pace</p>
+          <p class="mt-3 text-2xl font-semibold text-amber-700">{{ behind_schedule_count }}</p>
+          <p class="mt-2 text-xs leading-5 text-amber-600">Actual completion is below expected progress.</p>
+        </div>
+        <div class="min-h-32 rounded-2xl bg-blue-50 p-4">
+          <p class="text-[11px] font-semibold uppercase text-blue-700">Avg progress gap</p>
+          <p class="mt-3 text-2xl font-semibold text-blue-700">{{ avg_progress_gap }}%</p>
+          <p class="mt-2 text-xs leading-5 text-blue-600">Expected minus actual across flagged projects.</p>
+        </div>
+        <div class="min-h-32 rounded-2xl bg-indigo-50 p-4">
+          <p class="text-[11px] font-semibold uppercase text-indigo-700">Extension candidates</p>
+          <p class="mt-3 text-2xl font-semibold text-indigo-700">{{ extension_candidates_count }}</p>
+          <p class="mt-2 text-xs leading-5 text-indigo-600">Flagged projects with suggested extension days.</p>
+        </div>
+      </div>
+    </div>
+
+    <aside class="forecast-panel rounded-2xl p-5">
+      <h3 class="text-base font-semibold text-slate-950">Flagged by Municipality</h3>
+      <div class="mt-4 space-y-3">
+        {% for item in top_municipalities %}
+        <div>
+          <div class="flex justify-between text-sm">
+            <span class="font-semibold text-slate-700">{{ item.project__mun|default:"Unspecified" }}</span>
+            <span class="text-slate-500">{{ item.total }} project(s)</span>
+          </div>
+          <div class="mt-2 h-2 rounded-full bg-slate-100">
+            <div class="h-2 rounded-full bg-blue-600" style="width: {{ item.avg_score|floatformat:0 }}%"></div>
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-sm text-slate-500">No flagged municipality data yet.</p>
+        {% endfor %}
+      </div>
+    </aside>
+  </section>
+</div>
+<div id="forecastReviewModal" class="forecast-review-modal fixed inset-0 z-[90] hidden items-center justify-center p-4">
+  <div class="forecast-review-card max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-3xl">
+    <div class="flex items-start justify-between gap-4 border-b border-slate-100 p-5">
+      <div class="min-w-0">
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Forecast Review</p>
+        <h2 id="reviewModalTitle" class="mt-2 truncate text-xl font-semibold text-slate-950">Project</h2>
+        <p id="reviewModalCode" class="mt-1 text-sm text-slate-500">No project code</p>
+      </div>
+      <button type="button" id="forecastReviewClose" class="grid h-10 w-10 place-items-center rounded-2xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50" aria-label="Close review modal">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+    <div class="max-h-[calc(92vh-7rem)] overflow-y-auto p-5">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div class="rounded-2xl border border-slate-100 bg-white p-4">
+          <p class="text-xs font-semibold text-slate-500">Risk Level</p>
+          <p id="reviewModalRisk" class="mt-2 text-lg font-semibold text-slate-950">-</p>
+        </div>
+        <div class="rounded-2xl border border-slate-100 bg-white p-4">
+          <p class="text-xs font-semibold text-slate-500">Score</p>
+          <p id="reviewModalScore" class="mt-2 text-lg font-semibold text-slate-950">0%</p>
+        </div>
+        <div class="rounded-2xl border border-slate-100 bg-white p-4">
+          <p class="text-xs font-semibold text-slate-500">Review Status</p>
+          <p id="reviewModalStatus" class="mt-2 text-lg font-semibold text-slate-950">Open</p>
+        </div>
+      </div>
+
+      <div class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <form method="post" class="review-action-form rounded-2xl border border-slate-100 bg-white p-4">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="acknowledge">
+          <input type="hidden" name="level" value="{{ selected_level }}">
+          <input type="hidden" name="per_page" value="{{ per_page }}">
+          <input type="hidden" name="page" value="{{ page_obj.number }}">
+          <p class="text-sm font-semibold text-slate-900">Acknowledge risk</p>
+          <p class="mt-1 text-xs leading-5 text-slate-500">Marks the forecast as seen so the team knows it is already under review.</p>
+          <button type="submit" class="mt-4 h-10 w-full rounded-xl bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700">Acknowledge Risk</button>
+        </form>
+
+        <form method="post" class="review-action-form rounded-2xl border border-slate-100 bg-white p-4">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="assign">
+          <input type="hidden" name="level" value="{{ selected_level }}">
+          <input type="hidden" name="per_page" value="{{ per_page }}">
+          <input type="hidden" name="page" value="{{ page_obj.number }}">
+          <label class="text-sm font-semibold text-slate-900" for="reviewModalReviewer">Assign reviewer</label>
+          <select id="reviewModalReviewer" name="assigned_reviewer" class="mt-3 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+            {% for reviewer in reviewers %}
+            <option value="{{ reviewer.pk }}">{{ reviewer.full_name|default:reviewer.username }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="mt-3 h-10 w-full rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">Assign Reviewer</button>
+        </form>
+
+        <form method="post" class="review-action-form rounded-2xl border border-slate-100 bg-white p-4">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="follow_up">
+          <input type="hidden" name="level" value="{{ selected_level }}">
+          <input type="hidden" name="per_page" value="{{ per_page }}">
+          <input type="hidden" name="page" value="{{ page_obj.number }}">
+          <label class="text-sm font-semibold text-slate-900" for="reviewModalFollowUp">Follow-up date</label>
+          <input id="reviewModalFollowUp" type="date" name="follow_up_date" class="mt-3 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+          <button type="submit" class="mt-3 h-10 w-full rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">Set Follow-up</button>
+        </form>
+
+        <form method="post" id="reviewResolveForm" class="review-action-form rounded-2xl border border-slate-100 bg-white p-4">
+          {% csrf_token %}
+          <input id="reviewResolveAction" type="hidden" name="action" value="resolve">
+          <input type="hidden" name="level" value="{{ selected_level }}">
+          <input type="hidden" name="per_page" value="{{ per_page }}">
+          <input type="hidden" name="page" value="{{ page_obj.number }}">
+          <p class="text-sm font-semibold text-slate-900">Resolution</p>
+          <p class="mt-1 text-xs leading-5 text-slate-500">Use this once the project risk has been handled or needs to be reopened.</p>
+          <button id="reviewResolveButton" type="submit" class="mt-4 h-10 w-full rounded-xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700">Mark Risk Resolved</button>
+        </form>
+      </div>
+
+      <form method="post" class="review-action-form mt-3 rounded-2xl border border-slate-100 bg-white p-4">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="notes">
+        <input type="hidden" name="level" value="{{ selected_level }}">
+        <input type="hidden" name="per_page" value="{{ per_page }}">
+        <input type="hidden" name="page" value="{{ page_obj.number }}">
+        <label class="text-sm font-semibold text-slate-900" for="reviewModalNotes">Review notes</label>
+        <textarea id="reviewModalNotes" name="review_notes" rows="4" placeholder="Add notes about the risk, assigned action, or next check-in..." class="mt-3 w-full rounded-2xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"></textarea>
+        <button type="submit" class="mt-3 h-10 rounded-xl border border-slate-200 px-5 text-sm font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">Save Notes</button>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('forecastReviewModal');
+    const closeBtn = document.getElementById('forecastReviewClose');
+    const forms = modal ? modal.querySelectorAll('.review-action-form') : [];
+    const reviewerSelect = document.getElementById('reviewModalReviewer');
+    const followUpInput = document.getElementById('reviewModalFollowUp');
+    const notesInput = document.getElementById('reviewModalNotes');
+    const resolveAction = document.getElementById('reviewResolveAction');
+    const resolveButton = document.getElementById('reviewResolveButton');
+
+    function closeReviewModal() {
+      modal?.classList.add('hidden');
+      modal?.classList.remove('flex');
+      document.body.classList.remove('overflow-hidden');
+    }
+
+    document.querySelectorAll('.forecast-review-trigger').forEach((button) => {
+      button.addEventListener('click', function() {
+        if (!modal) return;
+        forms.forEach((form) => {
+          form.action = this.dataset.reviewUrl || '';
+        });
+        document.getElementById('reviewModalTitle').textContent = this.dataset.projectTitle || 'Project';
+        document.getElementById('reviewModalCode').textContent = this.dataset.projectCode || 'No project code';
+        document.getElementById('reviewModalRisk').textContent = this.dataset.riskLabel || '-';
+        document.getElementById('reviewModalScore').textContent = `${this.dataset.riskScore || 0}%`;
+        document.getElementById('reviewModalStatus').textContent = this.dataset.reviewStatus || 'Open';
+        if (reviewerSelect) reviewerSelect.value = this.dataset.reviewerId || '';
+        if (followUpInput) followUpInput.value = this.dataset.followUp || '';
+        if (notesInput) notesInput.value = this.dataset.notes || '';
+        if (resolveAction) resolveAction.value = this.dataset.resolveAction || 'resolve';
+        if (resolveButton) {
+          resolveButton.textContent = this.dataset.resolveLabel || 'Mark Risk Resolved';
+          const isReopen = (this.dataset.resolveAction || '') === 'reopen';
+          resolveButton.className = `mt-4 h-10 w-full rounded-xl text-sm font-semibold ${isReopen ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`;
+        }
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.classList.add('overflow-hidden');
+      });
+    });
+
+    closeBtn?.addEventListener('click', closeReviewModal);
+    modal?.addEventListener('click', function(event) {
+      if (event.target === modal) closeReviewModal();
+    });
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape' && modal && !modal.classList.contains('hidden')) closeReviewModal();
+    });
+  });
+</script>
+{% if focus_project_id %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const target = document.getElementById('forecast-project-{{ focus_project_id }}') || document.getElementById('forecast-project-mobile-{{ focus_project_id }}');
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+</script>
+{% endif %}
+{% endblock %}

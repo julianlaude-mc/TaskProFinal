@@ -1,0 +1,2932 @@
+{% extends "administrator/base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Proposals{% endblock %}
+{% block nav-proposals %}active-nav{% endblock %}
+{% block page-title %}Proposals{% endblock %}
+
+{% block styles %}
+<style>
+    .proposal-shell,
+    .proposal-shell input,
+    .proposal-shell select,
+    .proposal-shell button,
+    .proposal-shell table {
+        font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        letter-spacing: 0;
+        font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+        -webkit-font-smoothing: antialiased;
+        text-rendering: geometricPrecision;
+    }
+
+    .proposal-shell {
+        background: #f6f9fd;
+        padding: 1.25rem;
+        border-radius: 1.25rem;
+        color: #0f172a;
+    }
+
+    .proposal-shell h1,
+    .proposal-shell h2,
+    .proposal-shell h3,
+    .proposal-shell .font-extrabold,
+    .proposal-shell .font-bold {
+        letter-spacing: 0;
+        font-weight: 650;
+    }
+
+    .proposal-hero {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(59, 130, 246, 0.28);
+        background:
+            radial-gradient(circle at 88% 20%, rgba(147, 197, 253, 0.45), transparent 24rem),
+            linear-gradient(120deg, #082f63 0%, #1359d8 56%, #0ea5e9 100%);
+        border-radius: 1.25rem;
+        color: #fff;
+        padding: 1.65rem;
+        box-shadow: 0 22px 50px -28px rgba(15, 58, 102, 0.8);
+    }
+
+    .proposal-hero::after {
+        content: "";
+        position: absolute;
+        right: 2rem;
+        top: 1.1rem;
+        width: 16rem;
+        height: 7.8rem;
+        opacity: .58;
+        background:
+            linear-gradient(90deg, rgba(255,255,255,.26) 1px, transparent 1px),
+            linear-gradient(180deg, rgba(255,255,255,.22) 1px, transparent 1px);
+        background-size: 22px 22px;
+        mask-image: linear-gradient(90deg, transparent, #000 35%, #000 80%, transparent);
+    }
+
+    .proposal-stat-card,
+    .proposal-surface,
+    .proposal-insight-card {
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 1rem;
+        box-shadow: 0 18px 38px -32px rgba(15, 23, 42, 0.52);
+    }
+
+    .proposal-stat-card {
+        padding: 1rem;
+        transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .proposal-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 24px 45px -34px rgba(15, 23, 42, 0.65);
+    }
+
+    .proposal-toolbar-control {
+        min-height: 2.75rem;
+        border: 1px solid #dbe4f0;
+        border-radius: .8rem;
+        background: #fff;
+        color: #0f172a;
+        font-size: .875rem;
+        box-shadow: 0 10px 24px -28px rgba(15, 23, 42, .55);
+    }
+
+    .proposal-table-shell {
+        border-radius: 1rem;
+        border: 1px solid #dbe4f0;
+        overflow: hidden;
+        background: #fff;
+        max-width: 100%;
+    }
+
+    #proposalsTable {
+        border-collapse: separate !important;
+        border-spacing: 0;
+        width: 100% !important;
+        table-layout: fixed;
+    }
+
+    #proposalsTable thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f8fafc !important;
+        color: #526179;
+        font-size: .72rem;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        font-weight: 650;
+        border-bottom: 1px solid #e2e8f0;
+        white-space: normal;
+    }
+
+    #proposalsTable tbody td {
+        border-bottom: 1px solid #edf2f7;
+        color: #1e293b;
+        vertical-align: middle;
+        padding: .72rem .55rem;
+        font-size: .78rem;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+    }
+
+    #proposalsTable th:nth-child(1),
+    #proposalsTable td:nth-child(1) { width: 2.15rem; }
+    #proposalsTable th:nth-child(2),
+    #proposalsTable td:nth-child(2) { display: none; }
+    #proposalsTable th:nth-child(3),
+    #proposalsTable td:nth-child(3) { width: 27%; }
+    #proposalsTable th:nth-child(4),
+    #proposalsTable td:nth-child(4) { width: 19%; }
+    #proposalsTable th:nth-child(5),
+    #proposalsTable td:nth-child(5) { width: 10%; }
+    #proposalsTable th:nth-child(6),
+    #proposalsTable td:nth-child(6) { width: 8%; }
+    #proposalsTable th:nth-child(7),
+    #proposalsTable td:nth-child(7) { width: 9%; }
+    #proposalsTable th:nth-child(8),
+    #proposalsTable td:nth-child(8) { display: none; }
+    #proposalsTable th:nth-child(9),
+    #proposalsTable td:nth-child(9) { width: 25%; }
+
+    #proposalsTable tbody tr:nth-child(even) {
+        background: #fcfdff;
+    }
+
+    #proposalsTable tbody tr:hover {
+        background: #f4f8ff;
+    }
+
+    .proposal-status-pill,
+    .proposal-location-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: .25rem .55rem;
+        font-size: .72rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .proposal-status-pending { background: #fef3c7; color: #92400e; }
+    .proposal-status-for-review { background: #dbeafe; color: #1d4ed8; }
+    .proposal-status-approved { background: #dcfce7; color: #15803d; }
+    .proposal-status-rejected { background: #fee2e2; color: #b91c1c; }
+    .proposal-status-needs-revision { background: #ffedd5; color: #c2410c; }
+    .proposal-location-pill { background: #eaf2ff; color: #2459c5; }
+
+    .proposal-action-menu {
+        position: absolute;
+        right: 0;
+        top: calc(100% + .45rem);
+        z-index: 40;
+        display: none;
+        min-width: 12rem;
+        padding: .45rem;
+        background: #fff;
+        border: 1px solid #dbe4f0;
+        border-radius: .9rem;
+        box-shadow: 0 24px 60px -30px rgba(15, 23, 42, .65);
+    }
+
+    .proposal-action-menu.open {
+        display: block;
+    }
+
+    .proposal-menu-item {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: .55rem;
+        padding: .55rem .65rem;
+        border-radius: .65rem;
+        color: #334155;
+        font-size: .82rem;
+        font-weight: 700;
+        text-align: left;
+    }
+
+    .proposal-menu-item:hover {
+        background: #f1f5f9;
+    }
+
+    .proposal-action-menu button,
+    .proposal-action-menu a {
+        width: 100%;
+        justify-content: flex-start;
+        border: 0 !important;
+        border-radius: .65rem !important;
+        background: #fff;
+        box-shadow: none !important;
+        margin: 0 !important;
+        padding: .55rem .65rem !important;
+        gap: .5rem;
+        color: #334155;
+    }
+
+    .proposal-action-menu button:hover,
+    .proposal-action-menu a:hover {
+        background: #f1f5f9 !important;
+    }
+
+    .proposal-compact-actions .proposal-more-toggle,
+    .proposal-compact-actions .approveBtn,
+    .proposal-compact-actions .declineBtn,
+    .proposal-compact-actions .remarksBtn,
+    .proposal-compact-actions button[onclick^="viewSignatures"],
+    .proposal-compact-actions button[onclick^="openSignatureModal"] {
+        display: none !important;
+    }
+
+    .proposal-compact-actions .proposal-action-menu {
+        position: static;
+        display: flex !important;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        gap: .25rem;
+        flex-wrap: wrap;
+    }
+
+    .proposal-row-btn,
+    .proposal-compact-actions .proposal-action-menu button,
+    .proposal-compact-actions .proposal-action-menu a {
+        width: auto;
+        min-height: 2rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #dbeafe !important;
+        border-radius: .58rem !important;
+        background: #fff !important;
+        color: #1d4ed8 !important;
+        padding: .34rem .44rem !important;
+        font-size: .7rem;
+        font-weight: 620;
+        line-height: 1.1;
+        white-space: nowrap;
+        transition: background .18s ease, transform .18s ease, border-color .18s ease;
+    }
+
+    .proposal-compact-actions {
+        align-items: center;
+        justify-content: flex-end;
+        gap: .25rem !important;
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+
+    .proposal-title-main {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        color: #0f172a;
+        font-weight: 620;
+        line-height: 1.25;
+    }
+
+    .proposal-person-lines {
+        line-height: 1.35;
+    }
+
+    .proposal-row-btn:hover,
+    .proposal-compact-actions .proposal-action-menu button:hover,
+    .proposal-compact-actions .proposal-action-menu a:hover {
+        background: #eff6ff !important;
+        border-color: #bfdbfe !important;
+        transform: translateY(-1px);
+    }
+
+    .proposal-compact-actions .proposal-action-menu button[onclick^="window.openDeleteModal"] {
+        color: #dc2626 !important;
+        border-color: #fee2e2 !important;
+    }
+
+    .proposal-compact-actions .proposal-action-menu button[onclick^="window.openDeleteModal"]:hover {
+        background: #fef2f2 !important;
+        border-color: #fecaca !important;
+    }
+
+    #projectModal {
+        backdrop-filter: blur(4px);
+    }
+
+    #projectModal > div {
+        border-radius: 1.15rem;
+        border: 1px solid rgba(219, 234, 254, .85);
+        box-shadow: 0 30px 80px -35px rgba(15, 23, 42, .65);
+    }
+
+    #projectModal h3 {
+        color: #0f172a;
+        font-weight: 900;
+    }
+
+    #projectModal .bg-gray-50 {
+        background: #fff !important;
+        border: 1px solid #e2e8f0;
+        border-radius: 1rem;
+        box-shadow: 0 16px 38px -34px rgba(15, 23, 42, .65);
+    }
+
+    #projectModal label,
+    #projectModal .text-gray-600 {
+        color: #526179 !important;
+    }
+
+    #projectModal .font-medium,
+    #projectModal .text-gray-800 {
+        color: #0f172a !important;
+        font-weight: 800;
+    }
+
+    #projectModal .bg-green-50,
+    #projectModal .bg-blue-50,
+    #projectModal .bg-orange-50,
+    #projectModal .bg-red-50,
+    #projectModal .bg-pink-50,
+    #projectModal .bg-yellow-50 {
+        border: 1px solid rgba(191, 219, 254, .7);
+        border-radius: .9rem;
+    }
+
+    .proposal-drawer {
+        width: min(28rem, calc(100vw - 1.5rem));
+        box-shadow: -24px 0 60px -38px rgba(15, 23, 42, .8);
+    }
+
+    .proposal-fab {
+        position: fixed;
+        right: 1.6rem;
+        bottom: 1.6rem;
+        z-index: 45;
+        width: 3.65rem;
+        height: 3.65rem;
+        border-radius: 1.15rem;
+        background: linear-gradient(135deg, #2563eb, #06b6d4);
+        color: #fff;
+        box-shadow: 0 22px 45px -22px rgba(37, 99, 235, .85);
+        transition: transform .2s ease;
+    }
+
+    .proposal-fab:hover {
+        transform: translateY(-3px) scale(1.02);
+    }
+
+    #proposalStatusChart {
+        display: block !important;
+        width: 168px !important;
+        height: 168px !important;
+        max-width: 168px;
+        max-height: 168px;
+        margin: 0 auto;
+    }
+
+    #proposalStatusSummary {
+        position: relative;
+        z-index: 1;
+        align-self: stretch;
+    }
+
+    #proposalAmountBars {
+        min-width: 0;
+    }
+
+    div.dataTables_wrapper div.dataTables_filter,
+    div.dataTables_wrapper div.dataTables_length {
+        display: none;
+    }
+
+    div.dataTables_wrapper .dataTables_info,
+    div.dataTables_wrapper .dataTables_paginate {
+        padding: 1rem .75rem;
+        color: #64748b !important;
+        font-size: .82rem;
+    }
+
+    @media (max-width: 768px) {
+        .proposal-shell {
+            padding: .75rem;
+            border-radius: 0;
+        }
+
+        .proposal-hero {
+            padding: 1.15rem;
+        }
+
+        .proposal-hero::after {
+            display: none;
+        }
+
+        .proposal-toolbar {
+            grid-template-columns: 1fr !important;
+        }
+
+        .proposal-table-shell {
+            margin-inline: -.25rem;
+            border-radius: .85rem;
+            border: 0;
+            background: transparent;
+            overflow: visible;
+        }
+
+        #proposalsTable,
+        #proposalsTable thead,
+        #proposalsTable tbody,
+        #proposalsTable tr,
+        #proposalsTable td {
+            display: block;
+            width: 100% !important;
+        }
+
+        #proposalsTable thead {
+            display: none;
+        }
+
+        #proposalsTable {
+            border-spacing: 0 .85rem;
+            table-layout: auto;
+        }
+
+        #proposalsTable tbody tr {
+            border: 1px solid #dbe4f0;
+            border-radius: 1rem;
+            background: #fff !important;
+            box-shadow: 0 16px 34px -28px rgba(15, 23, 42, .55);
+            overflow: hidden;
+        }
+
+        #proposalsTable tbody td {
+            display: grid !important;
+            grid-template-columns: minmax(6.5rem, 38%) minmax(0, 1fr);
+            gap: .75rem;
+            align-items: start;
+            border-bottom: 1px solid #edf2f7;
+            padding: .78rem .9rem;
+            font-size: .82rem;
+        }
+
+        #proposalsTable tbody td::before {
+            content: attr(data-label);
+            color: #64748b;
+            font-size: .68rem;
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        #proposalsTable tbody td:first-child,
+        #proposalsTable tbody td:nth-child(2),
+        #proposalsTable tbody td:nth-child(8) {
+            display: none !important;
+        }
+
+        #proposalsTable tbody td:nth-child(3),
+        #proposalsTable tbody td:last-child {
+            grid-template-columns: 1fr;
+        }
+
+        #proposalsTable tbody td:nth-child(3)::before,
+        #proposalsTable tbody td:last-child::before {
+            content: "";
+            display: none;
+        }
+
+        #proposalsTable tbody td:last-child {
+            border-bottom: 0;
+        }
+
+        .proposal-compact-actions,
+        .proposal-compact-actions .proposal-action-menu {
+            justify-content: stretch;
+            width: 100%;
+        }
+
+        .proposal-row-btn,
+        .proposal-compact-actions .proposal-action-menu button,
+        .proposal-compact-actions .proposal-action-menu a {
+            flex: 1 1 calc(50% - .25rem);
+            min-width: 0;
+            min-height: 2.35rem;
+            font-size: .76rem;
+            padding: .55rem .45rem !important;
+        }
+
+        div.dataTables_wrapper .dataTables_info,
+        div.dataTables_wrapper .dataTables_paginate {
+            float: none !important;
+            width: 100%;
+            text-align: center;
+            padding: .75rem 0;
+        }
+
+        div.dataTables_wrapper .dataTables_paginate .paginate_button {
+            margin: .15rem !important;
+            padding: .35rem .55rem !important;
+        }
+
+        .proposal-drawer {
+            inset: .5rem !important;
+            width: auto;
+            border-radius: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Simple Mode Reversed: Show tables, hide charts in Simple Mode -->
+<script>document.body.classList.add('simple-mode-reversed');</script>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" rel="stylesheet" />
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+
+<!-- Leaflet CSS/JS for location map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Proposal Documents Data -->
+<script id="proposalDocumentsData" type="application/json">
+{
+    {% for proposal in proposals %}{% if proposal.documents.count > 0 %}
+    "{{ proposal.id }}": {
+        "title": "{{ proposal.title|escapejs }}",
+        "documents": [
+            {% for doc in proposal.documents.all %}
+            {"id": "{{ doc.id }}", "filename": "{{ doc.filename|escapejs }}", "url": "{{ doc.file.url }}", "delete_url": "{% url 'delete_proposal_document' doc.id %}"}{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]
+    }{% if not forloop.last %},{% endif %}
+    {% endif %}{% endfor %}
+}
+</script>
+
+<div class="proposal-shell container mt-2" x-data="{
+    selectedIds: [],
+    openMassDelete: false,
+    selectAll: false,
+    drawerOpen: false,
+    drawerTab: 'overview',
+    drawerProposal: {},
+    proposalDocuments() {
+        try {
+            const source = document.getElementById('proposalDocumentsData');
+            const allDocs = source ? JSON.parse(source.textContent) : {};
+            return (allDocs[this.drawerProposal.id] && allDocs[this.drawerProposal.id].documents) ? allDocs[this.drawerProposal.id].documents : [];
+        } catch (_) {
+            return [];
+        }
+    },
+    statusClass(status) {
+        const normalized = String(status || '').toLowerCase().replace(/\s+/g, '-');
+        if (normalized.includes('approved')) return 'proposal-status-approved';
+        if (normalized.includes('rejected')) return 'proposal-status-rejected';
+        if (normalized.includes('revision')) return 'proposal-status-needs-revision';
+        if (normalized.includes('pending')) return 'proposal-status-pending';
+        return 'proposal-status-for-review';
+    },
+    decodeText(value) {
+        const text = String(value || '');
+        return text
+            .replace(/\\u([0-9a-fA-F]{4})/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
+            .replace(/â‚±/g, '₱');
+    },
+    openProposalDrawer(row) {
+        const amount = Number(row.dataset.proposalAmount || 0);
+        this.drawerTab = 'overview';
+        this.drawerProposal = {
+            id: row.dataset.proposalId || '-',
+            title: this.decodeText(row.dataset.proposalTitle || 'Proposal'),
+            description: this.decodeText(row.dataset.proposalDescription || '-'),
+            proponent: this.decodeText(row.dataset.proposalProponent || '-'),
+            beneficiary: this.decodeText(row.dataset.proposalBeneficiary || '-'),
+            location: this.decodeText(row.dataset.proposalLocation || '-'),
+            municipality: row.dataset.proposalMunicipality || '',
+            province: row.dataset.proposalProvince || '',
+            amount: amount ? '\u20b1' + amount.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '\u20b10',
+            approvedAmount: row.dataset.proposalApprovedAmount ? '\u20b1' + Number(row.dataset.proposalApprovedAmount || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '',
+            status: row.dataset.proposalStatus || '-',
+            budget: row.dataset.proposalBudget || '-',
+            remarks: this.decodeText(row.dataset.proposalRemarks || ''),
+            signed: row.dataset.proposalSigned === 'true',
+            projectId: row.dataset.proposalProjectId || '',
+            projectTitle: this.decodeText(row.dataset.proposalProjectTitle || ''),
+            projectStatus: this.decodeText(row.dataset.proposalProjectStatus || ''),
+            created: row.dataset.proposalCreated || '-',
+            updated: row.dataset.proposalUpdated || '-',
+            documents: row.dataset.proposalDocuments || '0'
+        };
+        this.drawerOpen = true;
+    },
+    toggleSelectAll(checked) {
+        const checkboxes = [...document.querySelectorAll('.proposal-checkbox')];
+        checkboxes.forEach((cb) => {
+            cb.checked = checked;
+        });
+        this.selectedIds = checked ? checkboxes.map(cb => String(cb.value)) : [];
+        this.selectAll = checked;
+    },
+    updateSelectAll() {
+        const checkboxes = [...document.querySelectorAll('.proposal-checkbox')];
+        const checkedBoxes = checkboxes.filter(cb => cb.checked);
+        this.selectedIds = checkedBoxes.map(cb => String(cb.value));
+        this.selectAll = checkedBoxes.length === checkboxes.length && checkboxes.length > 0;
+    }
+}">
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 p-3 rounded-lg text-white 
+                        {% if message.tags == 'success' %} bg-green-500 
+                        {% elif message.tags == 'error' %} bg-red-500 
+                        {% else %} bg-blue-500 {% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <section class="proposal-hero mb-5">
+        <div class="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div class="max-w-3xl">
+                <p class="text-xs uppercase tracking-[0.24em] text-blue-100">Proposals Module</p>
+                <h1 class="mt-2 text-3xl font-bold leading-tight">Project Proposals</h1>
+                <p class="mt-2 text-sm text-blue-50">Manage and track all project proposals, approvals, revisions, and funding requests.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <button onclick="document.getElementById('addProposalModal').style.display='block'; setTimeout(initMap, 200)"
+                    class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-blue-700 shadow-lg shadow-blue-950/10 transition hover:-translate-y-0.5 hover:bg-blue-50">
+                    <span class="material-icons text-base">add</span>
+                    New Proposal
+                </button>
+                <a href="{% url 'export_proposals_table_pdf' %}" target="_blank"
+                    class="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/15 px-4 py-3 text-sm font-bold text-white backdrop-blur transition hover:bg-white/25">
+                    <span class="material-icons text-base">ios_share</span>
+                    Export
+                </a>
+                <button type="button" onclick="document.getElementById('proposalSearchInput')?.focus()"
+                    class="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/15 px-4 py-3 text-sm font-bold text-white backdrop-blur transition hover:bg-white/25">
+                    <span class="material-icons text-base">filter_list</span>
+                    Filter
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-5">
+        <div class="proposal-stat-card">
+            <div class="flex items-center gap-3">
+                <span class="material-icons grid h-11 w-11 place-items-center rounded-2xl bg-blue-100 text-blue-700">article</span>
+                <div><p class="text-xs font-medium text-slate-500">Total Proposals</p><p class="text-2xl font-semibold text-slate-900">{{ proposals|length }}</p><p class="text-xs text-slate-500">All proposals</p></div>
+            </div>
+        </div>
+        <div class="proposal-stat-card"><div class="flex items-center gap-3"><span class="material-icons grid h-11 w-11 place-items-center rounded-2xl bg-amber-100 text-amber-700">schedule</span><div><p class="text-xs font-medium text-slate-500">Pending</p><p class="text-2xl font-semibold text-slate-900" data-stat-count="pending">0</p><p class="text-xs text-slate-500" data-stat-percent="pending">0% of total</p></div></div></div>
+        <div class="proposal-stat-card"><div class="flex items-center gap-3"><span class="material-icons grid h-11 w-11 place-items-center rounded-2xl bg-green-100 text-green-700">check</span><div><p class="text-xs font-medium text-slate-500">Approved</p><p class="text-2xl font-semibold text-slate-900" data-stat-count="approved">0</p><p class="text-xs text-slate-500" data-stat-percent="approved">0% of total</p></div></div></div>
+        <div class="proposal-stat-card"><div class="flex items-center gap-3"><span class="material-icons grid h-11 w-11 place-items-center rounded-2xl bg-orange-100 text-orange-700">published_with_changes</span><div><p class="text-xs font-medium text-slate-500">Needs Revision</p><p class="text-2xl font-semibold text-slate-900" data-stat-count="needs_revision">0</p><p class="text-xs text-slate-500" data-stat-percent="needs_revision">0% of total</p></div></div></div>
+        <div class="proposal-stat-card"><div class="flex items-center gap-3"><span class="material-icons grid h-11 w-11 place-items-center rounded-2xl bg-red-100 text-red-700">close</span><div><p class="text-xs font-medium text-slate-500">Rejected</p><p class="text-2xl font-semibold text-slate-900" data-stat-count="rejected">0</p><p class="text-xs text-slate-500" data-stat-percent="rejected">0% of total</p></div></div></div>
+    </div>
+
+    <div class="proposal-surface table-section p-4">
+        <div class="proposal-toolbar grid grid-cols-1 lg:grid-cols-[minmax(220px,1.7fr)_repeat(4,minmax(130px,1fr))_auto] gap-3 mb-4">
+            <div class="proposal-toolbar-control flex items-center gap-2 px-3">
+                <span class="material-icons text-base text-slate-400">search</span>
+                <input id="proposalSearchInput" type="search" placeholder="Search proposals..." class="w-full border-0 bg-transparent p-0 text-sm focus:ring-0">
+            </div>
+            <select id="proposalStatusFilter" class="proposal-toolbar-control px-3">
+                <option value="">Status: All</option>
+                <option value="pending">Pending</option>
+                <option value="for_review">For Review</option>
+                <option value="approved">Approved</option>
+                <option value="needs_revision">Needs Revision</option>
+                <option value="rejected">Rejected</option>
+            </select>
+            <select id="proposalLocationFilter" class="proposal-toolbar-control px-3"><option value="">All Municipalities</option></select>
+            <select id="proposalAmountFilter" class="proposal-toolbar-control px-3">
+                <option value="">All Amounts</option>
+                <option value="0-100000">Under ₱100K</option>
+                <option value="100000-250000">₱100K to ₱250K</option>
+                <option value="250000-500000">₱250K to ₱500K</option>
+                <option value="500000-999999999">₱500K+</option>
+            </select>
+            <select id="proposalDateFilter" class="proposal-toolbar-control px-3">
+                <option value="">All Time</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="365">This year</option>
+            </select>
+            <div class="flex items-center gap-2">
+                <template x-if="selectedIds.length > 0">
+                    <button @click="openMassDelete = true" class="rounded-xl bg-red-600 px-3 py-3 text-sm font-bold text-white shadow-sm hover:bg-red-700">Delete <span x-text="selectedIds.length"></span></button>
+                </template>
+                <button id="proposalColumnsBtn" type="button" class="proposal-toolbar-control inline-flex items-center justify-center gap-2 px-3 font-bold text-slate-700"><span class="material-icons text-base">view_column</span> Columns</button>
+            </div>
+        </div>
+
+        <div class="proposal-table-shell">
+        <table id="proposalsTable" class="min-w-full text-sm text-left text-gray-600">
+            <thead class="bg-gray-100 text-gray-700">
+                <tr>
+                    <th class="px-2 py-2 w-10">
+                        <input type="checkbox" :checked="selectAll" @change="toggleSelectAll($event.target.checked)" @click.stop @mousedown.stop
+                            class="proposal-select-all rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    </th>
+                    <th class="px-4 py-2">#</th>
+                    <th class="px-4 py-3">Proposal Title</th>
+                    <th class="px-4 py-3">Proponent & Beneficiary</th>
+                    <th class="px-4 py-2">Location</th>
+                    <th class="px-4 py-2">Proposed Amount</th>
+                    <th class="px-4 py-2">Status</th>
+                    <th class="px-4 py-2">Documents</th>
+                    <th class="px-4 py-2 text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for proposal in proposals %}
+                <tr class="cursor-pointer hover:bg-blue-50 transition"
+                    data-proposal-row="true"
+                    data-proposal-id="{{ proposal.id }}"
+                    data-proposal-title="{{ proposal.title|escapejs }}"
+                    data-proposal-description="{{ proposal.description|default:''|escapejs }}"
+                    data-proposal-proponent="{{ proposal.proponent.full_name|default:'-'|escapejs }}"
+                    data-proposal-beneficiary="{{ proposal.beneficiary.full_name|default:'-'|escapejs }}"
+                    data-proposal-location="{{ proposal.location|default:'-'|escapejs }}"
+                    data-proposal-municipality="{{ proposal.municipality|default:''|escapejs }}"
+                    data-proposal-province="{{ proposal.province|default:''|escapejs }}"
+                    data-proposal-amount="{{ proposal.proposed_amount|floatformat:2 }}"
+                    data-proposal-approved-amount="{{ proposal.approved_amount|default_if_none:'' }}"
+                    data-proposal-status="{{ proposal.get_status_display|default:proposal.status|escapejs }}"
+                    data-proposal-status-key="{{ proposal.status }}"
+                    data-proposal-budget="{% if proposal.budget %}{{ proposal.budget.fund_source|escapejs }}{% else %}-{% endif %}"
+                    data-proposal-remarks="{{ proposal.review_remarks|default:''|escapejs }}"
+                    data-proposal-signed="{% if proposal.id in signed_proposal_ids %}true{% else %}false{% endif %}"
+                    data-proposal-project-id="{% if proposal.project %}{{ proposal.project.id }}{% endif %}"
+                    data-proposal-project-title="{% if proposal.project %}{{ proposal.project.project_title|escapejs }}{% endif %}"
+                    data-proposal-project-status="{% if proposal.project %}{{ proposal.project.status|escapejs }}{% endif %}"
+                    data-proposal-created="{{ proposal.submission_date|date:'M d, Y h:i A' }}"
+                    data-proposal-updated="{{ proposal.updated_at|date:'M d, Y h:i A'|default:'-' }}"
+                    data-proposal-documents="{{ proposal.documents.count }}">
+                    <td class="px-2 py-2" data-label="Select">
+                        <input type="checkbox" class="proposal-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                            value="{{ proposal.id }}"
+                            @change="updateSelectAll()" @click.stop @mousedown.stop>
+                    </td>
+                    <td class="px-4 py-2" data-label="No.">{{ forloop.counter }}</td>
+                    <td class="px-4 py-3" data-label="Proposal">
+                        <div class="proposal-title-main">{{ proposal.title }}</div>
+                        <div class="mt-1 text-xs text-slate-500">Created on {{ proposal.submission_date|date:"M d, Y" }}</div>
+                    </td>
+                    <td class="px-4 py-3" data-label="People">
+                        <div class="proposal-person-lines flex flex-col gap-1 text-xs text-slate-600">
+                            <span><span class="material-icons align-[-3px] text-sm text-slate-400">person</span> Proponent {{ proposal.proponent.full_name|default:"-" }}</span>
+                            <span><span class="material-icons align-[-3px] text-sm text-slate-400">groups</span> Beneficiary {{ proposal.beneficiary.full_name|default:"-" }}</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-2" data-label="Location">
+                        {% if proposal.municipality or proposal.province %}
+                            {% if proposal.municipality %}<span class="proposal-location-pill">{{ proposal.municipality }}</span>{% endif %}
+                            {% if proposal.province %}<span class="proposal-location-pill mt-1">{{ proposal.province }}</span>{% endif %}
+                        {% else %}
+                            {{ proposal.location|default:"-" }}
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-2 font-semibold text-slate-900" data-label="Amount">₱{{ proposal.proposed_amount|floatformat:0|intcomma|default:"0" }}</td>
+                    <td class="px-4 py-2 text-center" data-label="Status">
+                        <div class="flex flex-col items-center gap-1">
+                            {% if proposal.status == 'pending' %}
+                                <span class="proposal-status-pill proposal-status-pending">Pending</span>
+                            {% elif proposal.status == 'for_review' %}
+                                <span class="proposal-status-pill proposal-status-for-review">For Review</span>
+                            {% elif proposal.status == 'approved' %}
+                                <span class="proposal-status-pill proposal-status-approved">Approved</span>
+                            {% elif proposal.status == 'rejected' %}
+                                <span class="proposal-status-pill proposal-status-rejected">Rejected</span>
+                            {% elif proposal.status == 'needs_revision' %}
+                                <span class="proposal-status-pill proposal-status-needs-revision">Needs Revision</span>
+                            {% endif %}
+                            {% if proposal.id in signed_proposal_ids %}
+                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700 font-medium">
+                                <span class="material-icons text-xs">verified</span> Signed
+                            </span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    
+                    <!-- Documents Column -->
+                    <td class="px-4 py-2 text-center" data-label="Documents">
+                        {% if proposal.documents.count > 0 %}
+                            <button onclick="openDocumentsModal({{ proposal.id }})" class="px-2 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 text-xs">
+                                📄 {{ proposal.documents.count }} file{{ proposal.documents.count|pluralize }}
+                            </button>
+                        {% else %}
+                            <span class="text-gray-400 text-xs">No files</span>
+                        {% endif %}
+                    </td>
+
+                    <td class="px-4 py-2" data-label="Actions">
+                        <!-- Clean Action Buttons with Dropdown -->
+                        <div class="proposal-compact-actions relative flex items-center justify-center gap-2" onclick="event.stopPropagation()">
+                            <button type="button" class="proposal-row-btn" onclick="window.openProposalInfoModal(this.closest('tr'))">
+                                <span class="material-icons text-sm">visibility</span>
+                                View Proposal
+                            </button>
+                            <!-- Row actions stay visible to avoid an extra menu layer. -->
+                            <div class="proposal-action-menu" role="menu">
+                                <!-- Edit Button -->
+                                <button type="button"
+                                    class="px-2 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-l-md hover:bg-gray-100 editBtn"
+                                    onclick="window.openEditModal(this)"
+                                    data-id="{{ proposal.id }}"
+                                    data-title="{{ proposal.title }}"
+                                    data-description="{{ proposal.description }}"
+                                    data-proposed_amount="{{ proposal.proposed_amount }}"
+                                    data-approved_amount="{{ proposal.approved_amount|default_if_none:'' }}"
+                                    data-budget="{{ proposal.budget.id|default:'' }}"
+                                    data-status="{{ proposal.status }}"
+                                    data-proponent="{{ proposal.proponent.id|default:'' }}"
+                                    data-beneficiary="{{ proposal.beneficiary.id|default:'' }}"
+                                    data-location="{{ proposal.location|default:'' }}"
+                                    data-municipality="{{ proposal.municipality|default:'' }}"
+                                    data-province="{{ proposal.province|default:'' }}"
+                                    data-document-url="{% if proposal.document %}{{ proposal.document.url }}{% endif %}"
+                                    title="Edit">
+                                    <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                    Edit
+                                </button>
+
+                                {% if proposal.status == 'pending' or proposal.status == 'for_review' or proposal.status == 'needs_revision' %}
+                                <!-- Approve Button -->
+                                <button type="button"
+                                    class="px-2 py-1.5 text-xs font-medium text-green-700 bg-white border-t border-b border-gray-300 hover:bg-green-50 approveBtn"
+                                    data-id="{{ proposal.id }}"
+                                    data-title="{{ proposal.title }}"
+                                    data-description="{{ proposal.description }}"
+                                    data-proposed_amount="{{ proposal.proposed_amount }}"
+                                    {% if proposal.budget %}data-budget="{{ proposal.budget.fund_source }}"{% else %}data-budget=""{% endif %}
+                                    data-document-url="{% if proposal.document %}{{ proposal.document.url }}{% endif %}"
+                                    title="Approve">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                </button>
+
+                                <!-- Decline Button -->
+                                <button type="button"
+                                    class="px-2 py-1.5 text-xs font-medium text-red-700 bg-white border-t border-b border-gray-300 hover:bg-red-50 declineBtn"
+                                    data-id="{{ proposal.id }}"
+                                    data-title="{{ proposal.title }}"
+                                    title="Decline">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                                {% endif %}
+
+                                <!-- E-Sign Button - Shows signed status -->
+                                {% if proposal.id in signed_proposal_ids %}
+                                <button type="button"
+                                    onclick="viewSignatures('proposal', '{{ proposal.id }}')"
+                                    class="px-2 py-1.5 text-xs font-medium text-green-700 bg-green-100 border-t border-b border-green-300 hover:bg-green-200 relative"
+                                    title="Signed - Click to view signature">
+                                    <span class="material-icons text-sm">verified</span>
+                                    <span class="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></span>
+                                </button>
+                                {% else %}
+                                <button type="button"
+                                    onclick="openSignatureModal('proposal', '{{ proposal.id }}')"
+                                    class="px-2 py-1.5 text-xs font-medium text-purple-700 bg-white border-t border-b border-gray-300 hover:bg-purple-50"
+                                    title="Add E-Signature">
+                                    <span class="material-icons text-sm">draw</span>
+                                </button>
+                                {% endif %}
+
+                                {% if proposal.review_remarks %}
+                                <!-- Remarks Button -->
+                                <button type="button" 
+                                    class="px-2 py-1.5 text-xs font-medium text-blue-700 bg-white border-t border-b border-gray-300 hover:bg-blue-50 remarksBtn"
+                                    data-remarks="{{ proposal.review_remarks|escape }}"
+                                    title="View Remarks">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+                                    </svg>
+                                </button>
+                                {% endif %}
+
+                                <!-- Delete Button -->
+                                <button type="button"
+                                    class="px-2 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-r-md hover:bg-gray-100 relative"
+                                    onclick="window.openDeleteModal('{{ proposal.id }}', '{{ proposal.title|escapejs }}')"
+                                    aria-label="Delete proposal">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                    Delete
+                                </button>
+                            </div>
+
+                            {% if proposal.status == 'approved' %}
+                            {% if proposal.project %}
+                            <!-- View Project Button -->
+                            <button type="button"
+                                class="proposal-row-btn"
+                                onclick="window.openProjectModal({
+                                    id: {{ proposal.project.id }},
+                                    project_title: '{{ proposal.project.project_title|escapejs }}',
+                                    status: '{{ proposal.project.status }}',
+                                    program: '{{ proposal.project.program|escapejs }}',
+                                    type_of_project: '{{ proposal.project.type_of_project|escapejs }}',
+                                    fund_source: '{{ proposal.project.fund_source|escapejs }}',
+                                    project_leader: {% if proposal.project.project_leader %}{get_full_name: '{{ proposal.project.project_leader.get_full_name|escapejs }}'}{% else %}null{% endif %},
+                                    mun: '{{ proposal.project.mun|escapejs }}',
+                                    province: '{{ proposal.project.province|escapejs }}',
+                                    district: '{{ proposal.project.district|escapejs }}',
+                                    male: {{ proposal.project.male|default:0 }},
+                                    female: {{ proposal.project.female|default:0 }},
+                                    senior_citizen: {{ proposal.project.senior_citizen|default:0 }},
+                                    pwd: {{ proposal.project.pwd|default:0 }},
+                                    no_of_beneficiaries: {{ proposal.project.no_of_beneficiaries|default:0 }},
+                                    funds: '{{ proposal.project.funds|default:"0" }}',
+                                    total_funds_released: '{{ proposal.project.total_funds_released|default:"0" }}',
+                                    amount_liquidated: '{{ proposal.project.amount_liquidated|default:"0" }}',
+                                    project_start: {% if proposal.project.project_start %}'{{ proposal.project.project_start|date:"Y-m-d" }}'{% else %}null{% endif %},
+                                    project_end: {% if proposal.project.project_end %}'{{ proposal.project.project_end|date:"Y-m-d" }}'{% else %}null{% endif %},
+                                    contact_details: '{{ proposal.project.contact_details|escapejs|default:"" }}',
+                                    proponent_details: '{{ proposal.project.proponent_details|escapejs|default:"" }}'
+                                })"
+                                title="View Project">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                                View Project
+                            </button>
+                            {% else %}
+                            <!-- Add Project Button (pre-fills project form with proposal data) -->
+                            <a href="{% url 'administrator_projects_url' %}?from_proposal={{ proposal.id }}&title={{ proposal.title|urlencode }}&description={{ proposal.description|urlencode }}&beneficiary={{ proposal.beneficiary.full_name|urlencode }}&proponent={{ proposal.proponent.full_name|urlencode }}&municipality={{ proposal.municipality|urlencode }}&province={{ proposal.province|urlencode }}&location={{ proposal.location|urlencode }}&amount={{ proposal.approved_amount|default:proposal.proposed_amount }}" 
+                                class="proposal-row-btn"
+                                title="Add Project from this Proposal">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                Create Project
+                            </a>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </td>
+
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-5">
+            <div class="proposal-insight-card p-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900">Proposal Insights</h3>
+                        <p class="text-xs text-slate-500">Status distribution across the current records.</p>
+                    </div>
+                    <span class="material-icons rounded-xl bg-purple-100 p-2 text-purple-700">donut_large</span>
+                </div>
+                <div class="mt-4 grid grid-cols-1 sm:grid-cols-[180px_1fr] gap-4 items-center">
+                    <canvas id="proposalStatusChart" class="max-h-44"></canvas>
+                    <div id="proposalStatusSummary" class="grid grid-cols-2 gap-3 text-sm"></div>
+                </div>
+            </div>
+            <div class="proposal-insight-card p-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900">Top Proposals by Amount</h3>
+                        <p class="text-xs text-slate-500">Largest funding requests in this view.</p>
+                    </div>
+                    <span class="material-icons rounded-xl bg-blue-100 p-2 text-blue-700">bar_chart</span>
+                </div>
+                <div id="proposalAmountBars" class="mt-4 space-y-3"></div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mt-4">
+            <div class="proposal-insight-card p-4"><p class="text-xs font-bold text-slate-500">Average proposal amount</p><p id="proposalAverageAmount" class="mt-1 text-xl font-extrabold text-slate-900">₱0</p></div>
+            <div class="proposal-insight-card p-4"><p class="text-xs font-bold text-slate-500">Most active municipality</p><p id="proposalTopMunicipality" class="mt-1 text-xl font-extrabold text-slate-900">-</p></div>
+            <div class="proposal-insight-card p-4"><p class="text-xs font-bold text-slate-500">Approval turnaround</p><p class="mt-1 text-xl font-extrabold text-slate-900">Tracked in history</p></div>
+            <div class="proposal-insight-card p-4"><p class="text-xs font-bold text-slate-500">Total approved funding</p><p id="proposalApprovedFunding" class="mt-1 text-xl font-extrabold text-slate-900">₱0</p></div>
+        </div>
+    </div>
+
+    <div x-show="drawerOpen" x-cloak class="fixed inset-0 z-40 bg-slate-950/25 backdrop-blur-sm" @click="drawerOpen = false"></div>
+    <aside x-show="drawerOpen" x-cloak x-transition class="proposal-drawer fixed bottom-4 right-4 top-4 z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white" @click.stop>
+        <div class="flex h-full flex-col">
+            <div class="border-b border-slate-100 p-5">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-extrabold uppercase tracking-[0.18em] text-blue-600">Proposal Details</p>
+                        <h2 class="mt-2 text-xl font-extrabold text-slate-950" x-text="drawerProposal.title"></h2>
+                        <p class="mt-1 text-xs text-slate-500">Proposal ID: <span x-text="drawerProposal.id"></span></p>
+                    </div>
+                    <button type="button" class="rounded-xl p-2 text-slate-500 hover:bg-slate-100" @click="drawerOpen = false"><span class="material-icons">close</span></button>
+                </div>
+                <span class="proposal-status-pill mt-4" :class="statusClass(drawerProposal.status)" x-text="drawerProposal.status"></span>
+            </div>
+            <div class="flex-1 overflow-y-auto p-5">
+                <div class="grid grid-cols-1 gap-3 text-sm">
+                    <div class="rounded-xl border border-slate-100 bg-slate-50 p-3"><p class="text-xs font-bold text-slate-500">Proponent</p><p class="font-bold text-slate-900" x-text="drawerProposal.proponent"></p></div>
+                    <div class="rounded-xl border border-slate-100 bg-slate-50 p-3"><p class="text-xs font-bold text-slate-500">Beneficiary</p><p class="font-bold text-slate-900" x-text="drawerProposal.beneficiary"></p></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="rounded-xl border border-slate-100 p-3"><p class="text-xs font-bold text-slate-500">Amount</p><p class="font-extrabold text-slate-900" x-text="drawerProposal.amount"></p></div>
+                        <div class="rounded-xl border border-slate-100 p-3"><p class="text-xs font-bold text-slate-500">Documents</p><p class="font-extrabold text-slate-900" x-text="drawerProposal.documents"></p></div>
+                    </div>
+                    <div class="rounded-xl border border-slate-100 p-3"><p class="text-xs font-bold text-slate-500">Location</p><p class="font-bold text-slate-900" x-text="drawerProposal.location"></p></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="rounded-xl border border-slate-100 p-3"><p class="text-xs font-bold text-slate-500">Date created</p><p class="font-bold text-slate-900" x-text="drawerProposal.created"></p></div>
+                        <div class="rounded-xl border border-slate-100 p-3"><p class="text-xs font-bold text-slate-500">Last updated</p><p class="font-bold text-slate-900" x-text="drawerProposal.updated"></p></div>
+                    </div>
+                </div>
+                <div class="mt-5 grid grid-cols-2 gap-2">
+                    <button type="button" @click="drawerTab = 'overview'" :class="drawerTab === 'overview' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'" class="rounded-xl px-3 py-3 text-left text-sm font-semibold">Overview</button>
+                    <button type="button" @click="drawerTab = 'documents'" :class="drawerTab === 'documents' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'" class="rounded-xl px-3 py-3 text-left text-sm font-semibold">Documents</button>
+                    <button type="button" @click="drawerTab = 'history'" :class="drawerTab === 'history' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'" class="rounded-xl px-3 py-3 text-left text-sm font-semibold">History</button>
+                    <button type="button" @click="drawerTab = 'budget'" :class="drawerTab === 'budget' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'" class="rounded-xl px-3 py-3 text-left text-sm font-semibold">Budget</button>
+                    <button type="button" @click="drawerTab = 'comments'" :class="drawerTab === 'comments' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'" class="rounded-xl px-3 py-3 text-left text-sm font-semibold">Comments</button>
+                    <button type="button" @click="drawerTab = 'signatories'" :class="drawerTab === 'signatories' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'" class="rounded-xl px-3 py-3 text-left text-sm font-semibold">Signatories</button>
+                    <button type="button" @click="drawerTab = 'project'" :class="drawerTab === 'project' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'" class="col-span-2 rounded-xl px-3 py-3 text-left text-sm font-semibold">Linked Project</button>
+                </div>
+
+                <div class="mt-4 rounded-2xl border border-slate-100 bg-white p-4 text-sm">
+                    <div x-show="drawerTab === 'overview'" class="space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-900">Overview</h3>
+                        <p class="leading-6 text-slate-600" x-text="drawerProposal.description && drawerProposal.description !== '-' ? drawerProposal.description : 'No overview data available.'"></p>
+                    </div>
+                    <div x-show="drawerTab === 'documents'" class="space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-900">Documents</h3>
+                        <template x-if="proposalDocuments().length === 0">
+                            <p class="rounded-xl bg-slate-50 p-3 text-slate-500">No data.</p>
+                        </template>
+                        <template x-for="doc in proposalDocuments()" :key="doc.id">
+                            <a :href="doc.url" target="_blank" class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 px-3 py-2 hover:border-blue-200 hover:bg-blue-50">
+                                <span class="min-w-0 truncate font-medium text-slate-700" x-text="doc.filename"></span>
+                                <span class="material-icons text-base text-blue-600">open_in_new</span>
+                            </a>
+                        </template>
+                    </div>
+                    <div x-show="drawerTab === 'history'" class="space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-900">Approvals & History</h3>
+                        <div class="rounded-xl bg-slate-50 p-3">
+                            <p class="font-medium text-slate-800">Current status: <span x-text="drawerProposal.status"></span></p>
+                            <p class="mt-1 text-xs text-slate-500">Created <span x-text="drawerProposal.created"></span>; last updated <span x-text="drawerProposal.updated"></span>.</p>
+                        </div>
+                        <p x-show="!drawerProposal.remarks" class="rounded-xl bg-slate-50 p-3 text-slate-500">No additional approval notes.</p>
+                    </div>
+                    <div x-show="drawerTab === 'budget'" class="space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-900">Budget Breakdown</h3>
+                        <div class="grid grid-cols-1 gap-2">
+                            <div class="rounded-xl bg-slate-50 p-3"><p class="text-xs text-slate-500">Budget source</p><p class="font-semibold text-slate-900" x-text="drawerProposal.budget || 'No data'"></p></div>
+                            <div class="rounded-xl bg-slate-50 p-3"><p class="text-xs text-slate-500">Proposed amount</p><p class="font-semibold text-slate-900" x-text="drawerProposal.amount"></p></div>
+                            <div class="rounded-xl bg-slate-50 p-3"><p class="text-xs text-slate-500">Approved amount</p><p class="font-semibold text-slate-900" x-text="drawerProposal.approvedAmount || 'No data'"></p></div>
+                        </div>
+                    </div>
+                    <div x-show="drawerTab === 'comments'" class="space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-900">Comments</h3>
+                        <p class="rounded-xl bg-slate-50 p-3 text-slate-600" x-text="drawerProposal.remarks || 'No data.'"></p>
+                    </div>
+                    <div x-show="drawerTab === 'signatories'" class="space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-900">Signatories</h3>
+                        <p class="rounded-xl bg-slate-50 p-3 text-slate-600" x-text="drawerProposal.signed ? 'This proposal has a recorded digital signature.' : 'No data.'"></p>
+                    </div>
+                    <div x-show="drawerTab === 'project'" class="space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-900">Linked Project</h3>
+                        <template x-if="drawerProposal.projectId">
+                            <div class="rounded-xl bg-slate-50 p-3">
+                                <p class="font-semibold text-slate-900" x-text="drawerProposal.projectTitle || 'Linked project'"></p>
+                                <p class="mt-1 text-xs text-slate-500">Status: <span x-text="drawerProposal.projectStatus || 'No data'"></span></p>
+                                <a :href="`/projects/${drawerProposal.projectId}/`" class="mt-3 inline-flex rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white">Open Project</a>
+                            </div>
+                        </template>
+                        <p x-show="!drawerProposal.projectId" class="rounded-xl bg-slate-50 p-3 text-slate-500">No data.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-slate-100 p-5">
+                <button type="button" class="w-full rounded-xl bg-gradient-to-r from-blue-700 to-blue-500 px-4 py-3 text-sm font-extrabold text-white shadow-lg shadow-blue-500/20" @click="drawerOpen = false">Close Details</button>
+            </div>
+        </div>
+    </aside>
+
+    <button type="button" class="proposal-fab group" onclick="document.getElementById('addProposalModal').style.display='block'; setTimeout(initMap, 200)" aria-label="Create proposal">
+        <span class="material-icons">add</span>
+        <span class="pointer-events-none absolute bottom-full right-0 mb-2 hidden rounded-lg bg-slate-950 px-3 py-2 text-xs font-bold text-white group-hover:block">New Proposal</span>
+    </button>
+
+    <!-- Decline Modal (Single instance outside the loop) -->
+    <div id="declineModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl w-11/12 md:w-1/2 shadow-xl overflow-hidden">
+            <div class="bg-red-600 text-white px-6 py-4">
+                <h2 class="text-2xl font-bold">Decline Proposal</h2>
+            </div>
+            <form id="declineForm" method="POST" action="{% url 'administrator_proposals_decline_url' %}" class="p-6 space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="proposal_id" id="declineProposalId">
+                <div>
+                    <label class="font-semibold block mb-1">Title</label>
+                    <p id="declineModalTitle" class="text-left text-justify font-bold"></p>
+                </div>
+                <div>
+                    <label class="font-semibold block mb-1">Reason for Decline</label>
+                    <textarea name="decline_reason" rows="5" required
+                        class="w-full border border-gray-300 rounded p-2 resize-y min-h-[150px] max-h-[300px]"
+                        placeholder="Enter reason for declining this proposal"></textarea>
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button type="button" id="closeDeclineModal" class="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Decline</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Approve Modal (Single instance outside the loop) -->
+    <div id="approveModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 overflow-y-auto">
+        <div class="bg-white rounded-xl w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="bg-[#0072CE] text-white px-6 py-4 flex-shrink-0">
+                <h2 class="text-3xl font-extrabold">Approve Proposal</h2>
+            </div>
+            <div class="p-6 space-y-6 overflow-y-auto">
+                <form id="approveForm" method="POST" action="{% url 'administrator_proposals_approve_url' 0 %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="status" value="approved">
+                    <input type="hidden" name="proposal_id" id="modalProposalId">
+                    <div>
+                        <label class="font-semibold block mb-1">Title</label>
+                        <p id="modalTitle" class="text-lg font-bold text-left text-justify"></p>
+                    </div>
+                    <div>
+                        <label class="font-semibold block mb-1">Description</label>
+                        <p id="modalDescription" class="italic font-serif text-left text-justify"></p>
+                    </div><br>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start text-center">
+                        <div>
+                            <label class="font-semibold block mb-1">Proposed Amount</label>
+                            <p id="modalProposedAmount" class="text-center"></p>
+                        </div>
+                        <div>
+                            <label class="font-semibold block mb-1">Budget</label>
+                            <p id="modalBudget" class="text-center"></p>
+                        </div>
+                        <div>
+                            <label class="font-semibold block mb-1">Document</label>
+                            <a id="modalDocument" href="#" target="_blank"
+                                class="flex items-center justify-center gap-3 px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 w-full">
+                                View Document
+                            </a>
+                        </div>
+                    </div>
+                    <hr class="my-4 border-gray-300">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                        <div>
+                            <label for="project_start_date" class="font-semibold mb-2">Start Date</label>
+                            <input type="date" id="project_start_date" name="project_start_date"
+                                class="w-full border border-gray-300 rounded p-2 text-left">
+                        </div>
+                        <div>
+                            <label for="project_end_date" class="font-semibold mb-2">End Date</label>
+                            <input type="date" id="project_end_date" name="project_end_date"
+                                class="w-full border border-gray-300 rounded p-2 text-left">
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-start mt-4">
+                        <label for="approved_amount" class="font-semibold mb-2">Approved Amount</label>
+                        <input type="number" id="approved_amount" step="0.01" name="approved_amount"
+                            class="w-full border border-gray-300 rounded p-2 text-left placeholder-gray-400"
+                            placeholder="Enter the amount" required>
+                    </div>
+                    <div class="flex justify-end gap-3 mt-6">
+                        <button type="button" id="closeModal"
+                            class="px-5 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition">Cancel</button>
+                        <button type="submit"
+                            class="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Approve
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remarks Modal (Single instance outside the loop) -->
+    <div id="remarksModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl w-11/12 md:w-1/2 shadow-xl overflow-hidden">
+            <div class="bg-[#0072CE] text-white px-6 py-4 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
+                </svg>
+                <h2 class="text-xl font-bold">Remarks</h2>
+            </div>
+            <div class="p-6">
+                <p id="modalRemarksContent" class="text-gray-800 text-justify text-sm"></p>
+            </div>
+            <div class="flex justify-end p-4">
+                <button id="closeRemarksModal" class="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Proposal Modal -->
+    <div id="addProposalModal" style="display: none;" onclick="if(event.target === this) this.style.display='none'" class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto z-50" style="padding: 2rem 0;">
+        <div class="flex items-center justify-center min-h-full">
+            <div class="bg-white w-full max-w-2xl p-6 rounded-lg shadow-lg overflow-y-auto max-h-[90vh]">
+            <h2 class="text-lg font-semibold mb-4">Add Proposal</h2>
+            <form id="addProposalForm" method="POST" action="{% url 'administrator_proposals_add_url' %}" enctype="multipart/form-data" class="space-y-3" @submit="$event.target.querySelector('button[type=submit]').disabled = true; $event.target.querySelector('button[type=submit]').textContent = 'Saving...'">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-sm font-medium">Title <span class="text-red-500">*</span></label>
+                    <input type="text" name="title" class="w-full border rounded-lg px-3 py-2" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">Description</label>
+                    <textarea name="description" rows="3" class="w-full border rounded-lg px-3 py-2"></textarea>
+                </div>
+                
+                <!-- Proponent Selection -->
+                <div>
+                    <label class="block text-sm font-medium">Proponent</label>
+                    <select name="proponent" class="w-full border rounded-lg px-3 py-2">
+                        <option value="">Select Proponent</option>
+                        {% for proponent in proponents %}
+                        <option value="{{ proponent.id }}">{{ proponent.full_name }} ({{ proponent.email }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Beneficiary Selection -->
+                <div>
+                    <label class="block text-sm font-medium">Beneficiary</label>
+                    <select name="beneficiary" class="w-full border rounded-lg px-3 py-2">
+                        <option value="">Select Beneficiary</option>
+                        {% for beneficiary in beneficiaries_list %}
+                        <option value="{{ beneficiary.id }}">{{ beneficiary.full_name }} ({{ beneficiary.email }})</option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">Select the primary beneficiary for this proposal</p>
+                </div>
+                
+                <!-- Location Fields -->
+                <div class="border-t pt-3 mt-3">
+                    <label class="block text-sm font-semibold mb-2 text-gray-700">Project Location</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium">Municipality</label>
+                            <select name="municipality" @change="updateMapFromMunicipality($event.target.value)" class="w-full border rounded-lg px-3 py-2">
+                                <option value="">-- Select Municipality --</option>
+                                <option value="Almeria">Almeria</option>
+                                <option value="Biliran">Biliran</option>
+                                <option value="Cabucgayan">Cabucgayan</option>
+                                <option value="Caibiran">Caibiran</option>
+                                <option value="Culaba">Culaba</option>
+                                <option value="Kawayan">Kawayan</option>
+                                <option value="Maripipi">Maripipi</option>
+                                <option value="Naval">Naval</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Province</label>
+                            <input type="text" name="province" value="Biliran" readonly class="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed">
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <label class="block text-sm font-medium">Specific Location/Address</label>
+                        <input type="text" name="location" class="w-full border rounded-lg px-3 py-2" placeholder="Barangay, street, or specific address">
+                    </div>
+                    
+                    <!-- Interactive Map for Location Pinning -->
+                    <div class="mt-3 border rounded-lg overflow-hidden">
+                        <div class="bg-gray-100 px-3 py-2 border-b flex justify-between items-center">
+                            <span class="text-sm font-medium text-gray-700">📍 Pin Project Location (Click or drag marker)</span>
+                            <button type="button" onclick="centerMap()" class="text-xs text-blue-600 hover:text-blue-800">Reset to Center</button>
+                        </div>
+                        <div id="addProposalMap" style="height: 250px; width: 100%;"></div>
+                    </div>
+                    
+                    <!-- Hidden inputs for coordinates -->
+                    <div class="grid grid-cols-2 gap-3 mt-2">
+                        <div>
+                            <label class="block text-sm font-medium">Latitude</label>
+                            <input type="text" name="latitude" readonly class="w-full border rounded-lg px-3 py-2 bg-gray-50 text-sm text-gray-600">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Longitude</label>
+                            <input type="text" name="longitude" readonly class="w-full border rounded-lg px-3 py-2 bg-gray-50 text-sm text-gray-600">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Financial Fields -->
+                <div class="border-t pt-3 mt-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium">Proposed Amount</label>
+                            <input type="number" step="0.01" name="proposed_amount" class="w-full border rounded-lg px-3 py-2" placeholder="0.00">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Budget Source</label>
+                            <select name="budget" class="w-full border rounded-lg px-3 py-2">
+                                <option value="">Select Budget</option>
+                                {% for budget in budgets %}
+                                <option value="{{ budget.id }}">{{ budget.fund_source }} ({{ budget.fiscal_year }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium">Supporting Documents <span class="text-gray-500 text-xs">(Multiple files allowed)</span></label>
+                    <input type="file" name="documents" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" multiple class="w-full border rounded-lg px-3 py-2">
+                    <p class="text-xs text-gray-500 mt-1">Supported: PDF, Word, Excel, Images</p>
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t">
+                    <button type="button" onclick="document.getElementById('addProposalModal').style.display='none'" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save Proposal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    </div>
+
+    <!-- Edit Proposal Modal -->
+    <div id="editProposalModal" style="display: none;" onclick="if(event.target === this) this.style.display='none'" class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto z-50" style="padding: 2rem 0;">
+        <div class="flex items-center justify-center min-h-full">
+            <div class="bg-white w-full max-w-2xl p-6 rounded-lg shadow-lg overflow-y-auto max-h-[90vh]">
+                <h2 class="text-lg font-semibold mb-4">Edit Proposal</h2>
+                <form id="editProposalForm" method="POST" enctype="multipart/form-data" class="space-y-3">
+                    {% csrf_token %}
+                    <div>
+                        <label class="block text-sm font-medium">Title <span class="text-red-500">*</span></label>
+                        <input type="text" id="editTitle" name="title" class="w-full border rounded-lg px-3 py-2" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Description</label>
+                        <textarea id="editDescription" name="description" rows="3" class="w-full border rounded-lg px-3 py-2"></textarea>
+                    </div>
+
+                    <!-- Proponent Selection -->
+                    <div>
+                        <label class="block text-sm font-medium">Proponent</label>
+                        <select id="editProponent" name="proponent" class="w-full border rounded-lg px-3 py-2">
+                            <option value="">Select Proponent</option>
+                            {% for proponent in proponents %}
+                            <option value="{{ proponent.id }}">{{ proponent.full_name }} ({{ proponent.email }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Beneficiary Selection -->
+                    <div>
+                        <label class="block text-sm font-medium">Beneficiary</label>
+                        <select id="editBeneficiary" name="beneficiary" class="w-full border rounded-lg px-3 py-2">
+                            <option value="">Select Beneficiary</option>
+                            {% for beneficiary in beneficiaries_list %}
+                            <option value="{{ beneficiary.id }}">{{ beneficiary.full_name }} ({{ beneficiary.email }})</option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Select the primary beneficiary for this proposal</p>
+                    </div>
+
+                    <!-- Location Fields -->
+                    <div class="border-t pt-3 mt-3">
+                        <label class="block text-sm font-semibold mb-2 text-gray-700">Project Location</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium">Municipality</label>
+                                <select id="editMunicipality" name="municipality" class="w-full border rounded-lg px-3 py-2">
+                                    <option value="">-- Select Municipality --</option>
+                                    <option value="Almeria">Almeria</option>
+                                    <option value="Biliran">Biliran</option>
+                                    <option value="Cabucgayan">Cabucgayan</option>
+                                    <option value="Caibiran">Caibiran</option>
+                                    <option value="Culaba">Culaba</option>
+                                    <option value="Kawayan">Kawayan</option>
+                                    <option value="Maripipi">Maripipi</option>
+                                    <option value="Naval">Naval</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium">Province</label>
+                                <input type="text" name="province" value="Biliran" readonly class="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed">
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <label class="block text-sm font-medium">Specific Location/Address</label>
+                            <input type="text" id="editLocation" name="location" class="w-full border rounded-lg px-3 py-2" placeholder="Barangay, street, or specific address">
+                        </div>
+                    </div>
+
+                    <!-- Financial Fields -->
+                    <div class="border-t pt-3 mt-3">
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium">Proposed Amount</label>
+                                <input type="number" id="editProposedAmount" step="0.01" name="proposed_amount" class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium">Approved Amount</label>
+                                <input type="number" id="editApprovedAmount" step="0.01" name="approved_amount" class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium">Budget Source</label>
+                                <select id="editBudget" name="budget" class="w-full border rounded-lg px-3 py-2">
+                                    <option value="">Select Budget</option>
+                                    {% for budget in budgets %}
+                                    <option value="{{ budget.id }}">{{ budget.fund_source }} ({{ budget.fiscal_year }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium">Status</label>
+                        <select id="editStatus" name="status" class="w-full border rounded-lg px-3 py-2">
+                            <option value="pending">Pending</option>
+                            <option value="for_review">For Review</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="needs_revision">Needs Revision</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Add More Documents <span class="text-gray-500 text-xs">(Multiple files allowed)</span></label>
+                        <input type="file" name="documents" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" multiple class="w-full border rounded-lg px-3 py-2">
+                        <p class="text-xs text-gray-500 mt-1">New files will be added to existing documents</p>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3 border-t">
+                        <button type="button" onclick="document.getElementById('editProposalModal').style.display='none'" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">Update Proposal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Proposal Confirmation Modal -->
+    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl w-11/12 md:w-1/2 shadow-xl overflow-hidden">
+            <div class="bg-red-600 text-white px-6 py-4">
+                <h2 class="text-2xl font-bold">Delete Proposal</h2>
+            </div>
+            <form id="deleteForm" method="POST" action="">
+                {% csrf_token %}
+                <input type="hidden" name="proposal_id" id="deleteProposalId">
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="font-semibold block mb-1">Title</label>
+                        <p id="deleteModalTitle" class="text-left text-justify font-bold"></p>
+                    </div>
+                    <div>
+                        <label class="font-semibold block mb-1">Are you sure you want to delete this proposal?</label>
+                        <p class="text-gray-600">This action cannot be undone.</p>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 px-6 py-4 bg-gray-50">
+                    <button type="button" id="closeDeleteModal" class="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Mass Delete Confirmation Modal -->
+    <div x-show="openMassDelete" x-transition
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+        x-cloak>
+        <div @click.away="openMassDelete = false"
+            class="bg-white w-full max-w-md p-6 rounded-lg shadow-lg">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="flex-shrink-0 bg-red-100 rounded-full p-2">
+                    <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <h2 class="text-lg font-semibold text-gray-900">Delete Multiple Proposals</h2>
+            </div>
+            <p class="text-gray-600 mb-4">Are you sure you want to delete <strong x-text="selectedIds.length"></strong> proposal(s)? This action cannot be undone.</p>
+            <form method="POST" action="{% url 'administrator_proposals_mass_delete_url' %}">
+                {% csrf_token %}
+                <template x-for="id in selectedIds" :key="id">
+                    <input type="hidden" name="ids" :value="id">
+                </template>
+                <div class="flex justify-end gap-2">
+                    <button type="button" @click="openMassDelete = false"
+                        class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
+                    <button type="submit"
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Delete All</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Project Details Modal -->
+    <div id="projectModal" class="fixed inset-0 bg-slate-950/55 flex items-center justify-center hidden z-50 overflow-y-auto p-4">
+        <div class="bg-white w-full max-w-6xl rounded-2xl shadow-xl overflow-hidden max-h-[92vh] overflow-y-auto">
+            <!-- Modal Header -->
+            <div class="bg-gradient-to-r from-blue-700 via-blue-600 to-blue-700 text-white px-7 py-5 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="material-icons grid h-12 w-12 place-items-center rounded-xl bg-white/15 text-2xl">description</span>
+                    <h2 id="projectModalTitle" class="text-2xl font-extrabold">Project Details</h2>
+                </div>
+                <button onclick="closeProjectModal()" class="rounded-xl p-2 text-white hover:bg-white/15">
+                    <span class="material-icons text-3xl">close</span>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-7">
+                <!-- Project ID and Status -->
+                <div class="flex justify-between items-center mb-6">
+                    <span id="projectModalId" class="text-base text-gray-600"></span>
+                    <span id="projectModalStatus" class="text-sm font-bold"></span>
+                </div>
+
+                <!-- Basic Information -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z"/>
+                            </svg>
+                            Basic Information
+                        </h3>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Program:</span>
+                                <span id="projectModalProgram" class="font-medium">-</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Type:</span>
+                                <span id="projectModalType" class="font-medium">-</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Fund Source:</span>
+                                <span id="projectModalFundSource" class="font-medium">-</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Project Leader:</span>
+                                <span id="projectModalLeader" class="font-medium">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Location -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            Location
+                        </h3>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Municipality:</span>
+                                <span id="projectModalMunicipality" class="font-medium">-</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Province:</span>
+                                <span id="projectModalProvince" class="font-medium">-</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">District:</span>
+                                <span id="projectModalDistrict" class="font-medium">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Beneficiaries -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+                        </svg>
+                        Beneficiaries
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div class="text-center p-3 bg-blue-50 rounded-lg">
+                            <div class="text-2xl font-bold text-blue-600" id="projectModalMale">0</div>
+                            <div class="text-sm text-gray-600">Male</div>
+                        </div>
+                        <div class="text-center p-3 bg-pink-50 rounded-lg">
+                            <div class="text-2xl font-bold text-pink-600" id="projectModalFemale">0</div>
+                            <div class="text-sm text-gray-600">Female</div>
+                        </div>
+                        <div class="text-center p-3 bg-yellow-50 rounded-lg">
+                            <div class="text-2xl font-bold text-yellow-600" id="projectModalSenior">0</div>
+                            <div class="text-sm text-gray-600">Senior Citizen</div>
+                        </div>
+                        <div class="text-center p-3 bg-green-50 rounded-lg">
+                            <div class="text-2xl font-bold text-green-600" id="projectModalPwd">0</div>
+                            <div class="text-sm text-gray-600">PWD</div>
+                        </div>
+                        <div class="text-center p-3 bg-gray-50 rounded-lg md:col-span-1">
+                            <div class="text-2xl font-bold text-gray-600" id="projectModalTotalBeneficiaries">0</div>
+                            <div class="text-sm text-gray-600">Total</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Financial Information -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                        </svg>
+                        Financial Information
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-4 bg-green-50 rounded-lg">
+                            <div class="text-sm text-gray-600">Total Funds</div>
+                            <div class="text-xl font-bold text-green-600" id="projectModalFunds">₱0.00</div>
+                        </div>
+                        <div class="p-4 bg-blue-50 rounded-lg">
+                            <div class="text-sm text-gray-600">Funds Released</div>
+                            <div class="text-xl font-bold text-blue-600" id="projectModalFundsReleased">₱0.00</div>
+                        </div>
+                        <div class="p-4 bg-orange-50 rounded-lg">
+                            <div class="text-sm text-gray-600">Amount Liquidated</div>
+                            <div class="text-xl font-bold text-orange-600" id="projectModalLiquidated">₱0.00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        Timeline
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-blue-50 rounded-lg">
+                            <div class="text-sm text-gray-600">Start Date</div>
+                            <div class="text-lg font-semibold text-blue-600" id="projectModalStart">-</div>
+                        </div>
+                        <div class="p-4 bg-red-50 rounded-lg">
+                            <div class="text-sm text-gray-600">End Date</div>
+                            <div class="text-lg font-semibold text-red-600" id="projectModalEnd">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Information -->
+                <div id="projectModalAdditional" class="hidden">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                        </svg>
+                        Additional Information
+                    </h3>
+                    <div class="space-y-4">
+                        <div id="projectModalContact" class="hidden">
+                            <div class="p-4 bg-gray-50 rounded-lg">
+                                <div class="text-sm font-medium text-gray-700 mb-2">Contact Details</div>
+                                <div id="projectModalContactDetails" class="text-gray-800"></div>
+                            </div>
+                        </div>
+                        <div id="projectModalProponent" class="hidden">
+                            <div class="p-4 bg-gray-50 rounded-lg">
+                                <div class="text-sm font-medium text-gray-700 mb-2">Proponent Details</div>
+                                <div id="projectModalProponentDetails" class="text-gray-800"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="flex justify-end gap-3 px-6 py-4 bg-gray-50">
+                <button onclick="closeProjectModal()" class="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proposal Details Modal -->
+    <div id="proposalInfoModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-y-auto" style="display: none;">
+        <div class="min-h-full flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-4xl rounded-xl shadow-xl overflow-hidden" onclick="event.stopPropagation()">
+                <div class="bg-gradient-to-r from-sky-700 to-blue-700 text-white px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xl font-bold" id="proposalInfoTitle">Proposal Details</h3>
+                        <p class="text-blue-100 text-sm" id="proposalInfoMeta">Review proposal information and attachments</p>
+                    </div>
+                    <button type="button" onclick="closeProposalInfoModal()" class="text-white hover:text-blue-200">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+                <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-5 max-h-[78vh] overflow-y-auto">
+                    <div class="space-y-3">
+                        <div class="rounded-lg border border-slate-200 p-3 bg-slate-50">
+                            <p class="text-xs uppercase tracking-wide text-slate-500">Title</p>
+                            <p id="proposalInfoTitleText" class="text-sm font-semibold text-slate-800"></p>
+                        </div>
+                        <div class="rounded-lg border border-slate-200 p-3 bg-slate-50">
+                            <p class="text-xs uppercase tracking-wide text-slate-500">Description</p>
+                            <p id="proposalInfoDescription" class="text-sm text-slate-700 whitespace-pre-wrap"></p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="rounded-lg border border-slate-200 p-3">
+                                <p class="text-xs text-slate-500">Proponent</p>
+                                <p id="proposalInfoProponent" class="text-sm font-medium text-slate-800"></p>
+                            </div>
+                            <div class="rounded-lg border border-slate-200 p-3">
+                                <p class="text-xs text-slate-500">Beneficiary</p>
+                                <p id="proposalInfoBeneficiary" class="text-sm font-medium text-slate-800"></p>
+                            </div>
+                            <div class="rounded-lg border border-slate-200 p-3">
+                                <p class="text-xs text-slate-500">Proposed Amount</p>
+                                <p id="proposalInfoAmount" class="text-sm font-semibold text-slate-800"></p>
+                            </div>
+                            <div class="rounded-lg border border-slate-200 p-3">
+                                <p class="text-xs text-slate-500">Status</p>
+                                <p id="proposalInfoStatus" class="text-sm font-semibold text-slate-800"></p>
+                            </div>
+                        </div>
+                        <div class="rounded-lg border border-slate-200 p-3">
+                            <p class="text-xs text-slate-500">Location</p>
+                            <p id="proposalInfoLocation" class="text-sm text-slate-700"></p>
+                            <p id="proposalInfoBudget" class="mt-2 text-xs text-slate-500"></p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="rounded-lg border border-slate-200 p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="text-sm font-semibold text-slate-800">Attachments</p>
+                                <p id="proposalInfoAttachmentCount" class="text-xs text-slate-500"></p>
+                            </div>
+                            <div id="proposalInfoAttachmentList" class="space-y-2 max-h-40 overflow-y-auto"></div>
+                        </div>
+                        <div class="rounded-lg border border-slate-200 p-3 bg-slate-50">
+                            <p class="text-sm font-semibold text-slate-800 mb-2">Mini Viewer</p>
+                            <div id="proposalInfoViewer" class="h-72 bg-white border border-slate-200 rounded-lg overflow-hidden flex items-center justify-center text-sm text-slate-500">
+                                Select an attachment to preview.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% comment %}Legacy duplicate project modal retained out of render to avoid duplicate IDs. Active modal is inside the proposal shell above.{% endcomment %}
+{% comment %}
+<!-- Project Details Modal -->
+<div id="projectModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 overflow-y-auto">
+    <div class="bg-white w-full max-w-4xl mx-4 rounded-lg shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 flex-shrink-0">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h2 id="projectModalTitle" class="text-2xl font-bold">Project Details</h2>
+                    <p id="projectModalId" class="text-blue-100 mt-1">Project ID: </p>
+                </div>
+                <div class="text-right">
+                    <span id="projectModalStatus" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        Completed
+                    </span>
+                </div>
+            </div>
+            <button onclick="closeProjectModal()" class="absolute top-4 right-4 text-white hover:text-gray-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="p-6 overflow-y-auto flex-1">
+            <!-- Project Information -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <!-- Basic Information -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Basic Information</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Program</label>
+                            <p id="projectModalProgram" class="text-gray-800">-</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Type of Project</label>
+                            <p id="projectModalType" class="text-gray-800">-</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Fund Source</label>
+                            <p id="projectModalFundSource" class="text-gray-800">-</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Project Leader</label>
+                            <p id="projectModalLeader" class="text-gray-800">-</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Location Information -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Location</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Municipality</label>
+                            <p id="projectModalMunicipality" class="text-gray-800">-</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Province</label>
+                            <p id="projectModalProvince" class="text-gray-800">-</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">District</label>
+                            <p id="projectModalDistrict" class="text-gray-800">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Beneficiaries -->
+            <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Beneficiaries</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="text-center">
+                        <div id="projectModalMale" class="text-2xl font-bold text-blue-600">0</div>
+                        <div class="text-sm text-gray-600">Male</div>
+                    </div>
+                    <div class="text-center">
+                        <div id="projectModalFemale" class="text-2xl font-bold text-pink-600">0</div>
+                        <div class="text-sm text-gray-600">Female</div>
+                    </div>
+                    <div class="text-center">
+                        <div id="projectModalSenior" class="text-2xl font-bold text-purple-600">0</div>
+                        <div class="text-sm text-gray-600">Senior Citizens</div>
+                    </div>
+                    <div class="text-center">
+                        <div id="projectModalPwd" class="text-2xl font-bold text-green-600">0</div>
+                        <div class="text-sm text-gray-600">PWD</div>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-gray-600">Total Beneficiaries</span>
+                        <span id="projectModalTotalBeneficiaries" class="text-lg font-bold text-gray-800">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Financial Information -->
+            <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Financial Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="text-center p-4 bg-white rounded border">
+                        <div class="text-sm text-gray-600">Allocated Funds</div>
+                        <div id="projectModalFunds" class="text-xl font-bold text-blue-600">₱0.00</div>
+                    </div>
+                    <div class="text-center p-4 bg-white rounded border">
+                        <div class="text-sm text-gray-600">Funds Released</div>
+                        <div id="projectModalFundsReleased" class="text-xl font-bold text-green-600">₱0.00</div>
+                    </div>
+                    <div class="text-center p-4 bg-white rounded border">
+                        <div class="text-sm text-gray-600">Amount Liquidated</div>
+                        <div id="projectModalLiquidated" class="text-xl font-bold text-orange-600">₱0.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Timeline</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-medium text-gray-600">Project Start</label>
+                        <p id="projectModalStart" class="text-gray-800">-</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-600">Project End</label>
+                        <p id="projectModalEnd" class="text-gray-800">-</p>
+                    </div>
+                </div>
+            </div>
+
+            </div>
+        </div>
+
+        <div class="flex justify-end p-6 border-t border-gray-200 bg-gray-50">
+            <button onclick="closeProjectModal()" class="bg-gray-500 hover:bg-gray-600 text-white font-medium px-4 py-2 rounded-lg">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+{% endcomment %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function initMap() {
+    if (window.addMap) return; // Already initialized
+    const mapContainer = document.getElementById('addProposalMap');
+    if (!mapContainer) return;
+    
+    const defaultLat = 11.55;
+    const defaultLng = 124.47;
+    
+    window.addMap = L.map('addProposalMap').setView([defaultLat, defaultLng], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(window.addMap);
+    
+    window.addMarker = L.marker([defaultLat, defaultLng], {draggable: true}).addTo(window.addMap);
+    
+    // Update coordinates when marker is dragged
+    window.addMarker.on('dragend', (e) => {
+        const pos = e.target.getLatLng();
+        document.querySelector('input[name="latitude"]').value = pos.lat.toFixed(6);
+        document.querySelector('input[name="longitude"]').value = pos.lng.toFixed(6);
+        updateLocationFromPin(pos.lat, pos.lng);
+    });
+    
+    // Click on map to move marker
+    window.addMap.on('click', (e) => {
+        window.addMarker.setLatLng(e.latlng);
+        document.querySelector('input[name="latitude"]').value = e.latlng.lat.toFixed(6);
+        document.querySelector('input[name="longitude"]').value = e.latlng.lng.toFixed(6);
+        updateLocationFromPin(e.latlng.lat, e.latlng.lng);
+    });
+    
+    // Set initial coordinates
+    document.querySelector('input[name="latitude"]').value = defaultLat.toFixed(6);
+    document.querySelector('input[name="longitude"]').value = defaultLng.toFixed(6);
+}
+
+function updateLocationFromPin(lat, lng) {
+    const locationField = document.querySelector('input[name="location"]');
+    if (locationField && (!locationField.value || locationField.value.trim() === '')) {
+        // Show loading text while fetching address
+        locationField.value = 'Getting address...';
+        
+        // Use Nominatim (OpenStreetMap) for reverse geocoding
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.display_name) {
+                    // Extract a readable address from the response
+                    let address = data.display_name;
+                    
+                    // Try to get a more concise address
+                    if (data.address) {
+                        const addr = data.address;
+                        const parts = [];
+                        if (addr.house_number) parts.push(addr.house_number);
+                        if (addr.road) parts.push(addr.road);
+                        if (addr.suburb || addr.neighbourhood) parts.push(addr.suburb || addr.neighbourhood);
+                        if (addr.city || addr.town || addr.village) parts.push(addr.city || addr.town || addr.village);
+                        if (addr.state) parts.push(addr.state);
+                        
+                        if (parts.length > 0) {
+                            address = parts.join(', ');
+                        }
+                    }
+                    
+                    locationField.value = address;
+                } else {
+                    // Fallback to coordinates if geocoding fails
+                    locationField.value = `📍 Pinned Location: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                }
+            })
+            .catch(error => {
+                console.error('Geocoding error:', error);
+                // Fallback to coordinates if geocoding fails
+                locationField.value = `📍 Pinned Location: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            });
+    }
+}
+
+function centerMap() {
+    if (window.addMap && window.addMarker) {
+        window.addMap.setView([11.55, 124.47], 10);
+        window.addMarker.setLatLng([11.55, 124.47]);
+        document.querySelector('input[name="latitude"]').value = '11.550000';
+        document.querySelector('input[name="longitude"]').value = '124.470000';
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    // Target both proposals and budget file inputs
+    const pdfInputs = document.querySelectorAll(
+        "input[type='file'][name='document'], input[type='file'][name='budget_document']"
+    );
+
+    pdfInputs.forEach(input => {
+        input.addEventListener("change", function () {
+            const file = this.files[0];
+            if (file && file.type !== "application/pdf") {
+                alert("Invalid file type. Please upload a PDF only.");
+                this.value = ""; // Reset invalid file
+            }
+        });
+    });
+
+    // Initialize Charts
+    const statusLabels = {{ proposal_status_labels|safe }};
+    const statusValues = {{ proposal_status_values|safe }};
+
+    const statusCanvas = document.getElementById('proposalStatusChart');
+    if (statusCanvas && window.Chart) {
+        new Chart(statusCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: statusLabels,
+                datasets: [{
+                    data: statusValues,
+                    backgroundColor: ['#34d399', '#60a5fa', '#fb923c', '#fbbf24', '#f87171'],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: false,
+                maintainAspectRatio: false,
+                cutout: '68%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        padding: 10,
+                        titleFont: { family: 'Inter, Segoe UI, sans-serif', weight: '700' },
+                        bodyFont: { family: 'Inter, Segoe UI, sans-serif' }
+                    }
+                }
+            }
+        });
+    }
+
+    const amountLabels = {{ proposal_amount_labels|safe }};
+    const amountValues = {{ proposal_amount_values|safe }};
+
+    const amountsCanvas = document.getElementById('proposalAmountsChart');
+    if (amountsCanvas) {
+    const amountsCtx = amountsCanvas.getContext('2d');
+    new Chart(amountsCtx, {
+        type: 'bar',
+        data: {
+            labels: amountLabels,
+            datasets: [{
+                label: 'Proposed Amount (₱)',
+                data: amountValues,
+                backgroundColor: '#3B82F6',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            indexAxis: 'y',
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '₱' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+    }
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = [...document.querySelectorAll('tr[data-proposal-row]')];
+    const statusOrder = ['approved', 'for_review', 'needs_revision', 'pending', 'rejected'];
+    const statusLabels = { approved: 'Approved', for_review: 'For Review', needs_revision: 'Needs Revision', pending: 'Pending', rejected: 'Rejected' };
+    const statusColors = { approved: '#34d399', for_review: '#60a5fa', needs_revision: '#fb923c', pending: '#fbbf24', rejected: '#f87171' };
+    const counts = Object.fromEntries(statusOrder.map(key => [key, 0]));
+    const municipalities = {};
+    let totalAmount = 0;
+    let approvedFunding = 0;
+    const amounts = [];
+    const decodeText = value => String(value || '')
+        .replace(/\\u([0-9a-fA-F]{4})/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
+        .replace(/Ã¢â€šÂ±|â‚±/g, '₱');
+    const formatPeso = value => '\u20b1' + Math.round(value || 0).toLocaleString();
+
+    rows.forEach(row => {
+        const key = row.dataset.proposalStatusKey || '';
+        counts[key] = (counts[key] || 0) + 1;
+        const amount = Number(row.dataset.proposalAmount || 0);
+        totalAmount += amount;
+        if (key === 'approved') approvedFunding += amount;
+        if (amount) amounts.push({ title: decodeText(row.dataset.proposalTitle || 'Proposal'), amount });
+        const municipality = row.dataset.proposalMunicipality || 'Unspecified';
+        municipalities[municipality] = (municipalities[municipality] || 0) + 1;
+    });
+
+    statusOrder.forEach(key => {
+        const countNode = document.querySelector(`[data-stat-count="${key}"]`);
+        const percentNode = document.querySelector(`[data-stat-percent="${key}"]`);
+        if (countNode) countNode.textContent = counts[key] || 0;
+        if (percentNode) percentNode.textContent = rows.length ? `${Math.round((counts[key] || 0) / rows.length * 100)}% of total` : '0% of total';
+    });
+
+    const locationFilter = document.getElementById('proposalLocationFilter');
+    Object.keys(municipalities).sort().forEach(name => {
+        if (!name || name === 'Unspecified' || !locationFilter) return;
+        const option = document.createElement('option');
+        option.value = name.toLowerCase();
+        option.textContent = name;
+        locationFilter.appendChild(option);
+    });
+
+    const topMunicipality = Object.entries(municipalities).sort((a, b) => b[1] - a[1])[0];
+    const avgNode = document.getElementById('proposalAverageAmount');
+    const approvedNode = document.getElementById('proposalApprovedFunding');
+    const municipalityNode = document.getElementById('proposalTopMunicipality');
+    if (avgNode) avgNode.textContent = formatPeso(rows.length ? totalAmount / rows.length : 0);
+    if (approvedNode) approvedNode.textContent = formatPeso(approvedFunding);
+    if (municipalityNode) municipalityNode.textContent = topMunicipality ? topMunicipality[0] : '-';
+
+    const summary = document.getElementById('proposalStatusSummary');
+    if (summary) {
+        summary.innerHTML = statusOrder.map(key => `
+            <div class="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <div class="flex items-center gap-2">
+                    <span class="h-2.5 w-2.5 rounded-full" style="background:${statusColors[key]}"></span>
+                    <span class="font-bold text-slate-700">${statusLabels[key]}</span>
+                </div>
+                <div class="mt-1 text-lg font-extrabold text-slate-950">${counts[key] || 0}</div>
+            </div>
+        `).join('');
+    }
+
+    const amountBars = document.getElementById('proposalAmountBars');
+    const topAmounts = amounts.sort((a, b) => b.amount - a.amount).slice(0, 5);
+    const maxAmount = Math.max(...topAmounts.map(item => item.amount), 1);
+    if (amountBars) {
+        amountBars.innerHTML = topAmounts.map(item => `
+            <div>
+                <div class="mb-1 flex items-center justify-between gap-3 text-xs">
+                    <span class="truncate font-bold text-slate-700">${item.title}</span>
+                    <span class="font-extrabold text-slate-900">${formatPeso(item.amount)}</span>
+                </div>
+                <div class="h-2.5 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-gradient-to-r from-blue-600 to-sky-400" style="width:${Math.max(8, item.amount / maxAmount * 100)}%"></div></div>
+            </div>
+        `).join('') || '<p class="text-sm text-slate-500">No amount data available.</p>';
+    }
+});
+</script>
+
+<script>
+    // Global function to open delete modal (works with DataTables)
+    window.openDeleteModal = function(id, title) {
+        document.getElementById('deleteProposalId').value = id;
+        document.getElementById('deleteModalTitle').innerText = title;
+        const form = document.getElementById('deleteForm');
+        form.action = `/administrator/proposals/delete/${id}/`;
+        document.getElementById('deleteModal').classList.remove('hidden');
+    };
+
+    // Global function to open edit modal (works with DataTables)
+    window.openEditModal = function(button) {
+        // Populate form fields directly
+        document.getElementById('editTitle').value = button.dataset.title || '';
+        document.getElementById('editDescription').value = button.dataset.description || '';
+        document.getElementById('editProponent').value = button.dataset.proponent || '';
+        document.getElementById('editBeneficiary').value = button.dataset.beneficiary || '';
+        document.getElementById('editMunicipality').value = button.dataset.municipality || '';
+        document.getElementById('editLocation').value = button.dataset.location || '';
+        document.getElementById('editProposedAmount').value = button.dataset.proposed_amount || '';
+        document.getElementById('editApprovedAmount').value = button.dataset.approved_amount || '';
+        document.getElementById('editBudget').value = button.dataset.budget || '';
+        document.getElementById('editStatus').value = button.dataset.status || '';
+
+        // Set form action URL
+        const form = document.getElementById('editProposalForm');
+        form.action = `/administrator/proposals/update/${button.dataset.id}/`;
+
+        // Show modal
+        document.getElementById('editProposalModal').style.display = 'block';
+    };
+
+    $(document).ready(function () {
+        const proposalsDt = $('#proposalsTable').DataTable({
+            autoWidth: false,
+            scrollX: false,
+            columnDefs: [
+                { orderable: false, targets: [0, 8] }
+            ],
+            pageLength: 10
+        });
+
+        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+            if (settings.nTable.id !== 'proposalsTable') return true;
+            const row = proposalsDt.row(dataIndex).node();
+            if (!row) return true;
+            const status = document.getElementById('proposalStatusFilter')?.value || '';
+            const location = document.getElementById('proposalLocationFilter')?.value || '';
+            const amountRange = document.getElementById('proposalAmountFilter')?.value || '';
+            const dayRange = Number(document.getElementById('proposalDateFilter')?.value || 0);
+            if (status && row.dataset.proposalStatusKey !== status) return false;
+            if (location && (row.dataset.proposalMunicipality || '').toLowerCase() !== location) return false;
+            if (amountRange) {
+                const [min, max] = amountRange.split('-').map(Number);
+                const amount = Number(row.dataset.proposalAmount || 0);
+                if (amount < min || amount > max) return false;
+            }
+            if (dayRange) {
+                const created = Date.parse(row.dataset.proposalCreated || '');
+                const cutoff = Date.now() - (dayRange * 24 * 60 * 60 * 1000);
+                if (Number.isFinite(created) && created < cutoff) return false;
+            }
+            return true;
+        });
+
+        document.getElementById('proposalSearchInput')?.addEventListener('input', function() {
+            proposalsDt.search(this.value).draw();
+        });
+        ['proposalStatusFilter', 'proposalLocationFilter', 'proposalAmountFilter', 'proposalDateFilter'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', () => proposalsDt.draw());
+        });
+
+        const columnsBtn = document.getElementById('proposalColumnsBtn');
+        if (columnsBtn) {
+            const columnsPanel = document.createElement('div');
+            columnsPanel.className = 'proposal-action-menu';
+            columnsPanel.style.minWidth = '16rem';
+            columnsPanel.innerHTML = `
+                <div class="px-2 py-2 text-xs font-extrabold uppercase tracking-wide text-slate-500">Customize columns</div>
+                ${['Select', '#', 'Proposal title', 'Proponent & beneficiary', 'Location', 'Amount', 'Status', 'Documents', 'Actions'].map((label, index) => `
+                    <label class="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+                        <input type="checkbox" class="proposal-column-toggle rounded border-slate-300 text-blue-600" data-column="${index}" ${index === 0 || index === 8 ? 'disabled' : 'checked'}>
+                        <span>${label}</span>
+                    </label>
+                `).join('')}
+            `;
+            columnsBtn.parentElement.style.position = 'relative';
+            columnsBtn.parentElement.appendChild(columnsPanel);
+            columnsBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                columnsPanel.classList.toggle('open');
+            });
+            columnsPanel.addEventListener('change', function(e) {
+                const toggle = e.target.closest('.proposal-column-toggle');
+                if (!toggle) return;
+                proposalsDt.column(Number(toggle.dataset.column)).visible(toggle.checked);
+            });
+            document.addEventListener('click', function(e) {
+                if (!columnsPanel.contains(e.target) && e.target !== columnsBtn && !columnsBtn.contains(e.target)) {
+                    columnsPanel.classList.remove('open');
+                }
+            });
+        }
+
+        // Use event delegation for DataTables compatibility
+        const table = document.getElementById('proposalsTable');
+
+        function getBulkState() {
+            const container = document.querySelector('.container[x-data]');
+            if (!container) return null;
+            if (typeof Alpine !== 'undefined' && Alpine.$data) {
+                try { return Alpine.$data(container); } catch (_) {}
+            }
+            if (container.__x && container.__x.$data) return container.__x.$data;
+            if (container._x_dataStack && container._x_dataStack[0]) return container._x_dataStack[0];
+            return null;
+        }
+
+        function syncProposalsSelection() {
+            const state = getBulkState();
+            if (!state) return;
+            const all = proposalsDt.rows({ search: 'applied' }).nodes().to$().find('.proposal-checkbox');
+            const checked = all.filter(':checked');
+            state.selectedIds = checked.map((_, el) => String(el.value)).get();
+            state.selectAll = all.length > 0 && checked.length === all.length;
+            const header = table.querySelector('.proposal-select-all');
+            if (header) header.checked = state.selectAll;
+        }
+
+        table.addEventListener('change', function(e) {
+            if (e.target.matches('.proposal-select-all')) {
+                proposalsDt.rows({ search: 'applied' }).nodes().to$().find('.proposal-checkbox').prop('checked', e.target.checked);
+                syncProposalsSelection();
+                return;
+            }
+            if (e.target.matches('.proposal-checkbox')) {
+                syncProposalsSelection();
+            }
+        });
+
+        proposalsDt.on('draw', function() {
+            syncProposalsSelection();
+        });
+
+        table.addEventListener('click', function(e) {
+            if (e.target.closest('input, button, a, .tooltip-container')) {
+                return;
+            }
+            const row = e.target.closest('tr[data-proposal-row]');
+            if (!row) {
+                return;
+            }
+            const container = document.querySelector('.proposal-shell[x-data]');
+            const state = container && typeof Alpine !== 'undefined' && Alpine.$data ? Alpine.$data(container) : null;
+            if (state && typeof state.openProposalDrawer === 'function') {
+                state.openProposalDrawer(row);
+            } else {
+                window.openProposalInfoModal(row);
+            }
+        });
+
+        table.addEventListener('click', function(e) {
+            const toggle = e.target.closest('.proposal-more-toggle');
+            if (!toggle) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const menu = toggle.parentElement.querySelector('.proposal-action-menu');
+            document.querySelectorAll('.proposal-action-menu.open').forEach(openMenu => {
+                if (openMenu !== menu) openMenu.classList.remove('open');
+            });
+            menu?.classList.toggle('open');
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.proposal-compact-actions')) {
+                document.querySelectorAll('.proposal-action-menu.open').forEach(menu => menu.classList.remove('open'));
+            }
+        });
+
+        // Approve button handler (delegated)
+        table.addEventListener('click', function(e) {
+            const btn = e.target.closest('.approveBtn');
+            if (btn) {
+                const modal = document.getElementById('approveModal');
+                modal.classList.remove('hidden');
+
+                const proposalId = btn.dataset.id;
+                document.getElementById('modalProposalId').value = proposalId;
+                document.getElementById('modalTitle').textContent = btn.dataset.title;
+                document.getElementById('modalDescription').textContent = btn.dataset.description;
+                document.getElementById('modalProposedAmount').textContent = btn.dataset.proposed_amount;
+                document.getElementById('modalBudget').textContent = btn.dataset.budget;
+
+                const docLink = document.getElementById('modalDocument');
+                if(btn.dataset.documentUrl) {
+                    docLink.href = btn.dataset.documentUrl;
+                    docLink.style.display = 'inline';
+                } else {
+                    docLink.style.display = 'none';
+                }
+
+                document.getElementById('project_start_date').value = '';
+                document.getElementById('project_end_date').value = '';
+                document.getElementById('approved_amount').value = '';
+
+                const form = document.getElementById('approveForm');
+                form.action = `/administrator/proposals/approve/${proposalId}/`;
+            }
+        });
+
+        // Close approve modal
+        document.getElementById('closeModal').addEventListener('click', function() {
+            document.getElementById('approveModal').classList.add('hidden');
+        });
+
+        // Decline button handler (delegated)
+        table.addEventListener('click', function(e) {
+            const btn = e.target.closest('.declineBtn');
+            if (btn) {
+                const proposalId = btn.dataset.id;
+                const title = btn.dataset.title;
+
+                document.getElementById('declineProposalId').value = proposalId;
+                document.getElementById('declineModalTitle').innerText = title;
+
+                document.getElementById('declineModal').classList.remove('hidden');
+            }
+        });
+
+        // Close decline modal
+        document.getElementById('closeDeclineModal').addEventListener('click', () => {
+            document.getElementById('declineModal').classList.add('hidden');
+        });
+
+        // Remarks button handler (delegated)
+        table.addEventListener('click', function(e) {
+            const btn = e.target.closest('.remarksBtn');
+            if (btn) {
+                const remarks = btn.dataset.remarks;
+                document.getElementById('modalRemarksContent').innerText = remarks;
+                document.getElementById('remarksModal').classList.remove('hidden');
+            }
+        });
+
+        // Close remarks modal
+        document.getElementById('closeRemarksModal').addEventListener('click', () => {
+            document.getElementById('remarksModal').classList.add('hidden');
+        });
+
+        // Close delete modal
+        document.getElementById('closeDeleteModal').addEventListener('click', () => {
+            document.getElementById('deleteModal').classList.add('hidden');
+        });
+
+        // Set delete form action when modal opens
+        window.addEventListener('click', (e) => {
+            if (e.target.id === 'deleteModal') {
+                document.getElementById('deleteModal').classList.add('hidden');
+            }
+        });
+
+        // Project modal functions
+        window.openProjectModal = function(projectData) {
+            populateProjectModal(projectData);
+        };
+        
+        // View signatures modal function
+        window.viewSignatures = function(contentType, objectId) {
+            // Fetch signatures for this document
+            fetch(`/api/signatures/${contentType}/${objectId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    showSignaturesModal(contentType, objectId, data.signatures || []);
+                })
+                .catch(error => {
+                    console.error('Error fetching signatures:', error);
+                    // Show modal with "already signed" message as fallback
+                    showSignaturesModal(contentType, objectId, []);
+                });
+        };
+        
+        function showSignaturesModal(contentType, objectId, signatures) {
+            // Create modal if it doesn't exist
+            let modal = document.getElementById('viewSignaturesModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'viewSignaturesModal';
+                modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50';
+                document.body.appendChild(modal);
+            }
+            
+            const typeLabel = contentType === 'proposal' ? 'Proposal' : contentType.charAt(0).toUpperCase() + contentType.slice(1);
+            
+            let signaturesHtml = '';
+            if (signatures.length > 0) {
+                signaturesHtml = signatures.map(sig => `
+                    <div class="border rounded-lg p-3 bg-gray-50 signature-item" data-signature-id="${sig.id}">
+                        <div class="flex items-start gap-3">
+                            ${sig.signature_data ? `<img src="${sig.signature_data}" class="w-20 h-12 object-contain border rounded" alt="Signature">` : ''}
+                            <div class="flex-1">
+                                <div class="font-medium text-gray-800">${sig.user_name || 'Unknown User'}</div>
+                                <div class="text-sm text-gray-500">${sig.signature_type || 'Approval'}</div>
+                                <div class="text-xs text-gray-400 mt-1">Signed: ${sig.signed_at || 'Unknown date'}</div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="material-icons text-green-500">verified</span>
+                                <button onclick="removeSignature(${sig.id}, '${contentType}', '${objectId}')" 
+                                        class="text-red-400 hover:text-red-600 transition p-1 rounded hover:bg-red-50"
+                                        title="Remove this signature">
+                                    <span class="material-icons text-sm">delete</span>
+                                </button>
+                            </div>
+                        </div>
+                        ${sig.remarks ? `<div class="mt-2 text-sm text-gray-600 border-t pt-2">${sig.remarks}</div>` : ''}
+                    </div>
+                `).join('');
+            } else {
+                signaturesHtml = `
+                    <div class="text-center py-8">
+                        <span class="material-icons text-green-500 text-4xl">verified</span>
+                        <p class="text-gray-600 mt-2">This ${typeLabel.toLowerCase()} has been signed.</p>
+                        <p class="text-sm text-gray-400">Signature details are securely stored.</p>
+                    </div>
+                `;
+            }
+            
+            modal.innerHTML = `
+                <div class="bg-white w-full max-w-md rounded-lg shadow-xl overflow-hidden">
+                    <div class="bg-green-600 text-white px-4 py-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="material-icons">verified</span>
+                            <h3 class="font-semibold">${typeLabel} Signatures</h3>
+                        </div>
+                        <button onclick="document.getElementById('viewSignaturesModal').remove()" class="text-white hover:text-green-200">
+                            <span class="material-icons">close</span>
+                        </button>
+                    </div>
+                    <div class="p-4 max-h-96 overflow-y-auto space-y-3" id="signaturesListContainer">
+                        ${signaturesHtml}
+                    </div>
+                    <div class="px-4 py-3 bg-gray-50 border-t flex justify-between items-center">
+                        <button onclick="openSignatureModal('${contentType}', '${objectId}')" 
+                                class="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1">
+                            <span class="material-icons text-sm">add</span> Add Another Signature
+                        </button>
+                        <button onclick="document.getElementById('viewSignaturesModal').remove()" 
+                                class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            modal.style.display = 'flex';
+        }
+        
+        // Remove signature function
+        window.removeSignature = function(signatureId, contentType, objectId) {
+            if (!confirm('Are you sure you want to remove this signature? This action cannot be undone.')) {
+                return;
+            }
+            
+            // Get CSRF token from various sources
+            let csrfToken = null;
+            
+            // 1. Try to get from hidden input
+            const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfInput) {
+                csrfToken = csrfInput.value;
+            }
+            
+            // 2. Try to get from cookie
+            if (!csrfToken) {
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === 'csrftoken') {
+                        csrfToken = value;
+                        break;
+                    }
+                }
+            }
+            
+            // 3. Try to get from the csrf form
+            if (!csrfToken) {
+                const csrfForm = document.getElementById('csrf-form');
+                if (csrfForm) {
+                    const token = csrfForm.querySelector('[name=csrfmiddlewaretoken]');
+                    if (token) csrfToken = token.value;
+                }
+            }
+            
+            if (!csrfToken) {
+                alert('Security token not found. Please refresh the page and try again.');
+                return;
+            }
+            
+            fetch(`/api/signatures/delete/${signatureId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || `HTTP ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Remove the signature item from the modal
+                    const signatureItem = document.querySelector(`[data-signature-id="${signatureId}"]`);
+                    if (signatureItem) {
+                        signatureItem.remove();
+                    }
+                    
+                    // Check if there are any signatures left
+                    const remainingSignatures = document.querySelectorAll('.signature-item');
+                    if (remainingSignatures.length === 0) {
+                        // Refresh the modal to show "no signatures" state
+                        viewSignatures(contentType, objectId);
+                    }
+                    
+                    // Show success notification
+                    if (typeof showNotification === 'function') {
+                        showNotification('Signature removed successfully', 'success');
+                    } else {
+                        alert('Signature removed successfully');
+                    }
+                    
+                    // Refresh the page to update signature status indicators
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to remove signature'));
+                }
+            })
+            .catch(error => {
+                console.error('Error removing signature:', error);
+                alert('Failed to remove signature: ' + error.message);
+            });
+        };
+
+        function populateProjectModal(project) {
+            // Basic info
+            document.getElementById('projectModalTitle').textContent = project.project_title || 'Project Details';
+            document.getElementById('projectModalId').textContent = 'Project ID: ' + (project.id || '');
+            
+            // Status
+            const statusElement = document.getElementById('projectModalStatus');
+            statusElement.textContent = project.status || 'Unknown';
+            statusElement.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium';
+            
+            if (project.status === 'completed') {
+                statusElement.classList.add('bg-green-100', 'text-green-800');
+            } else if (project.status === 'ongoing') {
+                statusElement.classList.add('bg-blue-100', 'text-blue-800');
+            } else if (project.status === 'approved') {
+                statusElement.classList.add('bg-yellow-100', 'text-yellow-800');
+            } else {
+                statusElement.classList.add('bg-gray-100', 'text-gray-800');
+            }
+            
+            // Basic information
+            document.getElementById('projectModalProgram').textContent = project.program || '-';
+            document.getElementById('projectModalType').textContent = project.type_of_project || '-';
+            document.getElementById('projectModalFundSource').textContent = project.fund_source || '-';
+            document.getElementById('projectModalLeader').textContent = project.project_leader ? project.project_leader.get_full_name : '-';
+            
+            // Location
+            document.getElementById('projectModalMunicipality').textContent = project.mun || '-';
+            document.getElementById('projectModalProvince').textContent = project.province || '-';
+            document.getElementById('projectModalDistrict').textContent = project.district || '-';
+            
+            // Beneficiaries
+            document.getElementById('projectModalMale').textContent = project.male || 0;
+            document.getElementById('projectModalFemale').textContent = project.female || 0;
+            document.getElementById('projectModalSenior').textContent = project.senior_citizen || 0;
+            document.getElementById('projectModalPwd').textContent = project.pwd || 0;
+            document.getElementById('projectModalTotalBeneficiaries').textContent = project.no_of_beneficiaries || 0;
+            
+            // Financial
+            document.getElementById('projectModalFunds').textContent = '₱' + (project.funds ? parseFloat(project.funds).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00');
+            document.getElementById('projectModalFundsReleased').textContent = '₱' + (project.total_funds_released ? parseFloat(project.total_funds_released).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00');
+            document.getElementById('projectModalLiquidated').textContent = '₱' + (project.amount_liquidated ? parseFloat(project.amount_liquidated).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00');
+            
+            // Timeline
+            document.getElementById('projectModalStart').textContent = project.project_start ? new Date(project.project_start).toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric'}) : '-';
+            document.getElementById('projectModalEnd').textContent = project.project_end ? new Date(project.project_end).toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric'}) : '-';
+            
+            // Show modal
+            document.getElementById('projectModal').classList.remove('hidden');
+        }
+
+        window.closeProjectModal = function() {
+            document.getElementById('projectModal').classList.add('hidden');
+        };
+
+        const proposalDocumentsMap = (() => {
+            try {
+                const source = document.getElementById('proposalDocumentsData');
+                return source ? JSON.parse(source.textContent) : {};
+            } catch (_) {
+                return {};
+            }
+        })();
+
+        function isPreviewableImage(filename) {
+            return /\.(png|jpe?g|gif|webp)$/i.test(filename || '');
+        }
+
+        function isPreviewablePdf(filename) {
+            return /\.pdf$/i.test(filename || '');
+        }
+
+        function renderProposalMiniViewer(url, filename) {
+            const viewer = document.getElementById('proposalInfoViewer');
+            if (!viewer) {
+                return;
+            }
+            if (isPreviewablePdf(filename)) {
+                viewer.innerHTML = `<iframe src="${url}" class="w-full h-full border-0" title="${filename}"></iframe>`;
+                return;
+            }
+            if (isPreviewableImage(filename)) {
+                viewer.innerHTML = `<img src="${url}" alt="${filename}" class="max-w-full max-h-full object-contain" />`;
+                return;
+            }
+            viewer.innerHTML = `
+                <div class="text-center px-4">
+                    <p class="font-medium text-slate-700 mb-1">Preview is not available for this file type.</p>
+                    <a href="${url}" target="_blank" class="text-blue-600 hover:text-blue-800 underline">Open ${filename}</a>
+                </div>
+            `;
+        }
+
+        window.openProposalInfoModal = function(row) {
+            const modal = document.getElementById('proposalInfoModal');
+            if (!modal) {
+                return;
+            }
+            const proposalId = row.dataset.proposalId;
+            const docsData = proposalDocumentsMap[proposalId] ? proposalDocumentsMap[proposalId].documents : [];
+
+            document.getElementById('proposalInfoTitleText').textContent = row.dataset.proposalTitle || '-';
+            document.getElementById('proposalInfoDescription').textContent = row.dataset.proposalDescription || 'No description provided.';
+            document.getElementById('proposalInfoProponent').textContent = row.dataset.proposalProponent || '-';
+            document.getElementById('proposalInfoBeneficiary').textContent = row.dataset.proposalBeneficiary || '-';
+            document.getElementById('proposalInfoAmount').textContent = `₱${Number(row.dataset.proposalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('proposalInfoStatus').textContent = row.dataset.proposalStatus || '-';
+
+            const municipality = row.dataset.proposalMunicipality || '';
+            const province = row.dataset.proposalProvince || '';
+            const location = row.dataset.proposalLocation || '-';
+            const combinedLocation = municipality || province
+                ? `${municipality}${municipality && province ? ', ' : ''}${province}`
+                : location;
+            document.getElementById('proposalInfoLocation').textContent = combinedLocation || '-';
+            document.getElementById('proposalInfoBudget').textContent = `Budget Source: ${row.dataset.proposalBudget || '-'}`;
+            document.getElementById('proposalInfoAttachmentCount').textContent = `${docsData.length} file${docsData.length !== 1 ? 's' : ''}`;
+
+            const attachmentList = document.getElementById('proposalInfoAttachmentList');
+            if (docsData.length === 0) {
+                attachmentList.innerHTML = '<p class="text-xs text-slate-500">No attachments uploaded for this proposal.</p>';
+                document.getElementById('proposalInfoViewer').innerHTML = 'No attachment selected.';
+            } else {
+                attachmentList.innerHTML = docsData.map((doc, idx) => `
+                    <button type="button" data-doc-index="${idx}" class="proposal-doc-btn w-full text-left px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition text-sm flex items-center justify-between gap-2">
+                        <span class="truncate">${doc.filename}</span>
+                        <span class="material-icons text-base text-slate-500">visibility</span>
+                    </button>
+                `).join('');
+
+                attachmentList.querySelectorAll('.proposal-doc-btn').forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        const idx = Number(btn.dataset.docIndex);
+                        const selected = docsData[idx];
+                        if (selected) {
+                            renderProposalMiniViewer(selected.url, selected.filename);
+                        }
+                    });
+                });
+
+                renderProposalMiniViewer(docsData[0].url, docsData[0].filename);
+            }
+
+            modal.style.display = 'block';
+        };
+
+        window.closeProposalInfoModal = function() {
+            const modal = document.getElementById('proposalInfoModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        };
+
+        // Close modal when clicking outside
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('projectModal');
+            if (e.target === modal) {
+                closeProjectModal();
+            }
+            const proposalModal = document.getElementById('proposalInfoModal');
+            if (e.target === proposalModal) {
+                closeProposalInfoModal();
+            }
+        });
+        
+        // ========== Documents Modal Functions ==========
+        window.openDocumentsModal = function(proposalId) {
+            try {
+                const dataEl = document.getElementById('proposalDocumentsData');
+                if (!dataEl) {
+                    console.error('Documents data not found');
+                    return;
+                }
+                const allDocs = JSON.parse(dataEl.textContent);
+                const proposalData = allDocs[proposalId];
+                
+                if (!proposalData) {
+                    alert('No documents found for this proposal.');
+                    return;
+                }
+                
+                // Create or get modal
+                let modal = document.getElementById('documentsModal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'documentsModal';
+                    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+                    document.body.appendChild(modal);
+                }
+                
+                // Build documents list HTML
+                let docsHtml = proposalData.documents.map(doc => `
+                    <li class="flex items-center justify-between bg-gray-50 p-3 rounded-lg group hover:bg-gray-100 transition-colors">
+                        <span class="truncate flex-1 text-gray-700 flex items-center gap-2">
+                            <span class="material-icons text-blue-500">description</span>
+                            ${doc.filename}
+                        </span>
+                        <div class="flex items-center gap-2">
+                            <button onclick="previewDocument('${doc.url}', '${doc.filename.replace(/'/g, "\\'")}')" 
+                                    class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition" title="Preview">
+                                <span class="material-icons text-sm">visibility</span>
+                            </button>
+                            <a href="${doc.url}" download 
+                               class="p-2 text-green-600 hover:bg-green-100 rounded-lg transition" title="Download">
+                                <span class="material-icons text-sm">download</span>
+                            </a>
+                            <button onclick="confirmDeleteDocument('${doc.delete_url}', '${doc.filename.replace(/'/g, "\\'")}')" 
+                                    class="p-2 text-red-500 hover:bg-red-100 rounded-lg transition" title="Delete">
+                                <span class="material-icons text-sm">delete</span>
+                            </button>
+                        </div>
+                    </li>
+                `).join('');
+                
+                modal.innerHTML = `
+                    <div class="bg-white w-full max-w-lg rounded-xl shadow-2xl text-left overflow-hidden transform transition-all" onclick="event.stopPropagation()">
+                        <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex justify-between items-center">
+                            <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                                <span class="material-icons">folder_open</span>
+                                Documents
+                            </h3>
+                            <button onclick="closeDocumentsModal()" class="text-white hover:text-blue-200 transition">
+                                <span class="material-icons">close</span>
+                            </button>
+                        </div>
+                        <div class="px-6 py-2 bg-blue-50 border-b border-blue-100">
+                            <p class="text-sm text-blue-800 truncate" title="${proposalData.title}">${proposalData.title}</p>
+                        </div>
+                        <div class="p-6">
+                            <ul class="space-y-2 max-h-80 overflow-y-auto">
+                                ${docsHtml}
+                            </ul>
+                        </div>
+                        <div class="px-6 py-4 bg-gray-50 border-t flex justify-end">
+                            <button onclick="closeDocumentsModal()" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition font-medium">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                modal.style.display = 'flex';
+                modal.onclick = function(e) {
+                    if (e.target === modal) closeDocumentsModal();
+                };
+            } catch (err) {
+                console.error('Error opening documents modal:', err);
+            }
+        };
+        
+        window.closeDocumentsModal = function() {
+            const modal = document.getElementById('documentsModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        };
+        
+        window.confirmDeleteDocument = function(deleteUrl, filename) {
+            // Use confirmation modal instead of browser confirm
+            showDeleteConfirmModal(
+                'Delete Document',
+                `Are you sure you want to delete "${filename}"?`,
+                function() {
+                    window.location.href = deleteUrl;
+                }
+            );
+        };
+    });
+</script>
+
+{% endblock %}
+
+<!-- Module help for Administrator Proposals page (copied into header help by base JS) -->
+<div id="module-help" style="display:none;">
+    <h3>Proposals — what this page does</h3>
+    <p>Use this page to review requests to start new projects.</p>
+    <ul>
+        <li>✅ <strong>Approve or Decline</strong> — accept good proposals or send them back for changes.</li>
+        <li>📄 <strong>View Documents</strong> — preview attached PDFs before downloading.</li>
+        <li>🗂️ <strong>Batch actions</strong> — select several items to act on them together.</li>
+    </ul>
+    <p>Tip: Click the map to see where a proposal would be located.</p>
+</div>
+
+{% block module_help %}{% endblock %}

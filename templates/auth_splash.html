@@ -1,0 +1,47 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if mode == 'logout' %}Signing out{% else %}Signing in{% endif %} | TaskPro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="shortcut icon" href="{% static 'img/dost.png' %}" type="image/png">
+    <style>
+      .spin-ring {
+        width: 58px;
+        height: 58px;
+        border-radius: 9999px;
+        border: 3px solid rgba(148, 163, 184, 0.28);
+        border-top-color: #22d3ee;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100">
+    <div class="w-full max-w-md mx-4 rounded-2xl border border-slate-700/70 bg-slate-900/70 backdrop-blur-md shadow-2xl p-8 text-center">
+        <div class="flex justify-center mb-4">
+            <div class="spin-ring"></div>
+        </div>
+        <div class="flex items-center justify-center gap-2 mb-2">
+            <img src="{% static 'img/dost.png' %}" alt="DOST" class="h-8 w-8 rounded-full">
+            <h1 class="text-xl font-semibold">TaskPro</h1>
+        </div>
+        <p class="text-slate-300 text-sm">
+            {% if mode == 'logout' %}
+                Signing you out securely...
+            {% else %}
+                Logging you in and preparing your dashboard...
+            {% endif %}
+        </p>
+    </div>
+
+    <script>
+      setTimeout(function () {
+        window.location.href = "{{ next_url|escapejs }}";
+      }, 1300);
+    </script>
+</body>
+</html>

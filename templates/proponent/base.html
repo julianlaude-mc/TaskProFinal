@@ -1,0 +1,956 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" x-data="{ 
+    darkMode: localStorage.getItem('darkMode') === 'true',
+    simpleMode: localStorage.getItem('simpleMode') === 'true',
+    sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false'
+}" :class="{ 'dark': darkMode, 'simple-mode': simpleMode }">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Proponent Dashboard{% endblock %}</title>
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Alpine.js for interactivity -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+
+  <!-- Material Icons CDN -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <!-- Responsive Optimization Stylesheet -->
+  <link rel="stylesheet" href="{% static 'css/responsive-optimization.css' %}?v=20260512-mobile2">
+
+  <!-- Project custom styles (moved from inline to static/css/custom.css) -->
+    <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=20260430-simple3">
+
+  <!-- Favicon -->
+  <link rel="shortcut icon" href="{% static 'img/dost.png' %}" type="image/png">
+
+  {% block styles %}{% endblock %}
+
+  <style>
+    [x-cloak] { display: none !important; }
+
+    .active-nav {
+      background-color: #ffffff33;
+      color: #ffffff !important;
+      font-weight: 600;
+    }
+
+    .theme-toggle {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .theme-toggle:hover {
+      background-color: rgba(0, 0, 0, 0.1);
+    }
+
+    .dark .theme-toggle:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .theme-toggle .material-icons {
+      font-size: 24px;
+      transition: transform 0.3s ease;
+    }
+
+    #sidebar {
+      transition: none;
+    }
+
+    @media (min-width: 768px) {
+      #sidebar.hidden-sidebar {
+        width: 80px;
+        min-width: 80px;
+        overflow: visible;
+        border-right: 1px solid #e5e7eb;
+      }
+
+      #sidebar.hidden-sidebar .sidebar-header {
+        padding: 0.75rem;
+        text-align: center;
+      }
+
+      #sidebar.hidden-sidebar .sidebar-header img {
+        margin: 0 auto;
+      }
+
+      #sidebar.hidden-sidebar .sidebar-header div {
+        display: none;
+      }
+
+      #sidebar.hidden-sidebar nav > div:first-child span {
+        display: none;
+      }
+
+      #sidebar.hidden-sidebar nav > div:first-child img,
+      #sidebar.hidden-sidebar nav > div:first-child div {
+        margin: 0 auto;
+      }
+
+      #sidebar.hidden-sidebar nav a {
+        position: relative;
+        justify-content: center;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+      }
+
+      #sidebar.hidden-sidebar nav a span:not(.material-icons) {
+        display: none;
+      }
+
+      #sidebar.hidden-sidebar nav a .material-icons {
+        margin: 0 !important;
+        font-size: 24px;
+      }
+    }
+
+    .sidebar-toggle-btn {
+      background: #f8fafc;
+      border: 1px solid #dbe3ee;
+      color: #334155;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .sidebar-toggle-btn:hover {
+      border-color: #b6c3d7;
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    .expanded-content {
+      width: calc(100vw - 80px);
+    }
+
+    @media (max-width: 767px) {
+      .expanded-content {
+        width: 100%;
+      }
+    }
+
+    .safe-sidebar-logo {
+      width: 48px;
+      height: 48px;
+      min-width: 48px;
+      min-height: 48px;
+      max-width: 48px;
+      max-height: 48px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .safe-sidebar-avatar {
+      width: 64px;
+      height: 64px;
+      min-width: 64px;
+      min-height: 64px;
+      max-width: 64px;
+      max-height: 64px;
+      object-fit: cover;
+      display: block;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans modern-ui">
+
+  {% if request.GET.splash == '1' %}
+  <div id="taskproLoginSplash" class="taskpro-login-splash">
+    <div class="taskpro-login-splash-card">
+      <div class="taskpro-login-splash-ring"></div>
+      <h2 class="text-lg font-semibold text-white">Welcome to TaskPro</h2>
+      <p class="text-sm text-slate-300 mt-1">Preparing your dashboard...</p>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const splash = document.getElementById('taskproLoginSplash');
+      if (!splash) return;
+      setTimeout(function () {
+        splash.classList.add('fade-out');
+        setTimeout(function () { splash.remove(); }, 360);
+      }, 1200);
+
+      if (window.history && window.history.replaceState) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('splash');
+        window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+      }
+    });
+  </script>
+  {% endif %}
+
+  <!-- Per-module 'How to use' buttons should be placed inside each module's template
+       Use this markup inside a module header or toolbar:
+
+       <button class="module-howto-btn" aria-label="How to use this module">
+         How to use
+       </button>
+
+       Alternatively, the button can point to a help block using data-help-target="#help-block-id"
+       or have inline help HTML via data-help-content.
+  -->
+
+  <div class="min-h-screen flex flex-col md:flex-row">
+    <!-- Sidebar -->
+    <aside id="sidebar" 
+      class="w-64 bg-[#0072CE] text-white shadow-lg flex flex-col fixed md:sticky md:top-0 md:h-screen md:overflow-y-auto inset-y-0 left-0 transform -translate-x-full md:translate-x-0 z-50 overflow-y-auto"
+      :class="{ 'hidden-sidebar': !sidebarOpen }">
+      <!-- Header -->
+      <div class="sidebar-header flex items-center px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-500 shadow-md border-b border-blue-700">
+        <a href="{% url 'proponent_dashboard_url' %}" class="flex items-center hover:opacity-90 transition-opacity duration-200">
+          <img src="{% static 'img/dost.png' %}" 
+               alt="DOST Logo" 
+            class="safe-sidebar-logo rounded-full border-2 border-white shadow-lg transition-transform duration-300 hover:scale-110 cursor-pointer">
+          <div class="ml-3 flex flex-col">
+            <span class="text-2xl font-extrabold text-white drop-shadow-md leading-tight">TaskPro</span>
+            <span class="text-xs text-blue-200 font-medium">DOST Biliran</span>
+          </div>
+        </a>
+      </div>
+
+
+      <!-- Navigation -->
+      <nav class="flex-1 px-4 py-6 flex flex-col space-y-2">
+
+        <a href="{% url 'proponent_dashboard_url' %}" 
+          class="flex items-center px-3 py-2 rounded-lg transition duration-200
+          {% if request.resolver_match.url_name == 'proponent_dashboard_url' %} 
+            bg-white text-[#0072CE] 
+          {% else %} 
+            text-white hover:bg-white hover:text-[#0072CE] 
+          {% endif %}">
+            <span class="material-icons">dashboard</span>
+            <span class="ml-3 font-medium">Dashboard</span>
+        </a>
+
+        <a href="{% url 'proponent_forms_url' %}" 
+          class="flex items-center px-3 py-2 rounded-lg transition duration-200
+          {% if request.resolver_match.url_name == 'proponent_forms_url' %} 
+            bg-white text-[#0072CE] 
+          {% else %} 
+            text-white hover:bg-white hover:text-[#0072CE] 
+          {% endif %}">
+            <span class="material-icons">folder</span>
+            <span class="ml-3 font-medium">Forms</span>
+        </a>
+
+        <a href="{% url 'proponent_messages_url' %}" 
+          class="flex items-center px-3 py-2 rounded-lg transition duration-200
+          {% if request.resolver_match.url_name == 'proponent_messages_url' %} 
+            bg-white text-[#0072CE] 
+          {% else %} 
+            text-white hover:bg-white hover:text-[#0072CE] 
+          {% endif %}">
+            <span class="material-icons">message</span>
+            <span class="ml-3 font-medium">Messages</span>
+        </a>
+
+        <a href="{% url 'proponent_group_chats_url' %}" 
+          class="flex items-center px-3 py-2 rounded-lg transition duration-200
+          {% if request.resolver_match.url_name == 'proponent_group_chats_url' %} 
+            bg-white text-[#0072CE] 
+          {% else %} 
+            text-white hover:bg-white hover:text-[#0072CE] 
+          {% endif %}">
+            <span class="material-icons">chat</span>
+            <span class="ml-3 font-medium">Group Chats</span>
+        </a>
+
+        <a href="{% url 'proponent_announcements_url' %}" 
+          class="flex items-center px-3 py-2 rounded-lg transition duration-200
+          {% if request.resolver_match.url_name == 'proponent_announcements_url' %} 
+            bg-white text-[#0072CE] 
+          {% else %} 
+            text-white hover:bg-white hover:text-[#0072CE] 
+          {% endif %}">
+            <span class="material-icons">announcement</span>
+            <span class="ml-3 font-medium">Announcements</span>
+        </a>
+
+        <a href="{% url 'proponent_settings_url' %}" 
+          class="flex items-center px-3 py-2 rounded-lg transition duration-200
+          {% if request.resolver_match.url_name == 'proponent_settings_url' %} 
+            bg-white text-[#0072CE] 
+          {% else %} 
+            text-white hover:bg-white hover:text-[#0072CE] 
+          {% endif %}">
+            <span class="material-icons">settings</span>
+            <span class="ml-3 font-medium">Settings</span>
+        </a>
+
+
+        <a href="{% url 'logout_url' %}" 
+            class="flex items-center px-3 py-2 rounded-lg transition duration-200
+            {% if request.resolver_match.url_name == 'logout_url' %} 
+              bg-white text-[#0072CE] 
+            {% else %} 
+              text-white hover:bg-white hover:text-[#0072CE] 
+            {% endif %}">
+              <span class="material-icons">logout</span>
+              <span class="ml-3 font-medium">Logout</span>
+          </a>
+      </nav>
+    </aside>
+
+    <!-- Overlay for Mobile -->
+    <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden md:hidden z-40"></div>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col min-w-0" :class="{ 'expanded-content': !sidebarOpen }">
+      <!-- Top Navbar -->
+      <header class="bg-white shadow-md rounded-b-xl px-6 py-4 flex justify-between items-center sticky top-0 z-30 transition-all duration-300">
+        <div class="flex items-center space-x-4">
+          <button id="menu-btn" class="md:hidden text-gray-700 focus:outline-none hover:text-[#0072CE] transition">
+            <span class="material-icons">menu</span>
+          </button>
+          <button @click="sidebarOpen = !sidebarOpen; localStorage.setItem('sidebarOpen', sidebarOpen)"
+                  class="hidden md:flex sidebar-toggle-btn"
+                  :title="sidebarOpen ? 'Collapse Sidebar' : 'Expand Sidebar'"
+                  :aria-label="sidebarOpen ? 'Collapse Sidebar' : 'Expand Sidebar'">
+            <span class="material-icons" x-text="sidebarOpen ? 'keyboard_double_arrow_left' : 'keyboard_double_arrow_right'"></span>
+          </button>
+          <h1 class="text-xl font-bold text-gray-800">
+            {% block page-title %}Dashboard{% endblock %}
+          </h1>
+
+        </div>
+       <div class="flex items-center gap-3">
+          <!-- Theme Toggle Button -->
+          <button id="theme-toggle" class="theme-toggle" title="Toggle Dark/Light Mode">
+            <span class="material-icons">dark_mode</span>
+          </button>
+
+          <button type="button" data-simple-mode-toggle
+                  class="hidden sm:inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
+            <span class="material-icons text-lg">auto_awesome</span>
+            <span class="hidden md:inline" data-simple-mode-label>Simple Mode</span>
+          </button>
+
+          <!-- Help button removed (temporarily hidden per user request) -->
+
+          <!-- Notification Bell -->
+          <div class="relative">
+            <button id="notifBtn" class="relative flex h-11 w-11 items-center justify-center rounded-xl hover:bg-slate-100 transition dark:hover:bg-slate-800">
+              <span class="material-icons text-gray-600 text-[22px] cursor-pointer hover:text-[#0072CE] transition dark:text-gray-300 dark:hover:text-blue-400">
+                  notifications
+              </span>
+
+              {% if unread_notifications_count > 0 %}
+              <span id="notifBadge"
+                  class="absolute -top-1 -right-1 min-w-[1.15rem] h-[1.15rem] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-md shadow-red-500/25 leading-none">
+                  {{ unread_notifications_count }}
+              </span>
+              {% endif %}
+            </button>
+
+            <!-- Dropdown -->
+            <div id="notifDropdown"
+                class="hidden absolute right-0 mt-3 w-80 max-w-[calc(100vw-2rem)] bg-white shadow-lg rounded-lg border z-[9999]">
+
+
+              <div class="px-4 py-2 border-b font-semibold text-gray-700 flex justify-between items-center">
+                  <span>Notifications</span>
+                  <div class="flex items-center space-x-2">
+                      {% if notifications_list %}
+                      <button type="button" 
+                          onclick="clearAllNotifications()"
+                          class="text-xs text-red-600 hover:text-red-800 font-medium px-2 py-1 rounded hover:bg-red-50"
+                          title="Clear all notifications">
+                          Clear All
+                      </button>
+                      {% endif %}
+                      <button type="button" 
+                          onclick="closeNotifications()"
+                          class="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
+                          title="Close notifications">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                          </svg>
+                      </button>
+                  </div>
+              </div>
+
+              <ul class="max-h-80 overflow-y-auto">
+                  {% if notifications_list %}
+                      {% for notif in notifications_list %}
+                      <li class="border-b">
+                          <a href="{% url 'notification_redirect' notif.id %}"
+                            data-id="{{ notif.id }}"
+                            class="flex items-start gap-3 p-3 hover:bg-gray-50 notification-item {% if notif.status == 'unread' %}bg-blue-50{% endif %}">
+                            
+                              <span class="material-icons text-[#0072CE] text-lg">circle_notifications</span>
+
+                              <div class="flex-1">
+                                  <p class="text-sm text-gray-700">{{ notif.message }}</p>
+                                  <p class="text-xs text-gray-500">{{ notif.timestamp|date:"M d, Y h:i A" }}</p>
+                              </div>
+
+                              {% if notif.status == 'unread' %}
+                              <span class="w-2 h-2 bg-red-500 rounded-full mt-1"></span>
+                              {% endif %}
+                          </a>
+
+                      </li>
+                      {% endfor %}
+                  {% else %}
+                      <li class="p-4 text-center text-gray-500 text-sm">No notifications</li>
+                  {% endif %}
+              </ul>
+          </div>
+        </div>
+
+<script>
+    const notifBtn = document.getElementById("notifBtn");
+    const notifDropdown = document.getElementById("notifDropdown");
+
+    notifBtn.addEventListener("click", () => {
+        notifDropdown.classList.toggle("hidden");
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener("click", function (event) {
+        if (!notifBtn.contains(event.target) && !notifDropdown.contains(event.target)) {
+            notifDropdown.classList.add("hidden");
+        }
+    });
+
+    // Mark notification as read when clicked
+    document.querySelectorAll(".notification-item").forEach(item => {
+        item.addEventListener("click", function () {
+            const notifId = this.dataset.id;
+
+            fetch(`/notifications/read/${notifId}/`)
+                .catch(() => {});
+        });
+    });
+
+    // Clear all notifications function
+    function clearAllNotifications() {
+        if (!confirm('Are you sure you want to clear all notifications? This action cannot be undone.')) {
+            return;
+        }
+        
+        fetch('/notifications/clear-all/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update notification count
+                const badge = document.getElementById('notifBadge');
+                if (badge) {
+                    badge.remove();
+                }
+                
+                // Clear the notification list
+                document.querySelector('#notifDropdown ul').innerHTML = 
+                    '<li class="p-4 text-center text-gray-500 text-sm">No notifications</li>';
+                    
+                // Hide the clear all button
+                const clearButton = document.querySelector('button[onclick="clearAllNotifications()"]');
+                if (clearButton) {
+                    clearButton.style.display = 'none';
+                }
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    // Close notifications dropdown
+    function closeNotifications() {
+        const notifDropdown = document.getElementById("notifDropdown");
+        notifDropdown.classList.add("hidden");
+    }
+
+    // Theme Toggle Functionality
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = themeToggle.querySelector('.material-icons');
+    const html = document.documentElement;
+
+    // Keep one source of truth for theme persistence across all proponent modules.
+    const isDarkMode = localStorage.getItem('darkMode') === 'true' || localStorage.getItem('theme') === 'dark';
+    html.classList.toggle('dark', isDarkMode);
+    localStorage.setItem('darkMode', String(isDarkMode));
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+    if (html._x_dataStack && html._x_dataStack[0]) {
+      html._x_dataStack[0].darkMode = isDarkMode;
+    }
+    themeIcon.textContent = isDarkMode ? 'light_mode' : 'dark_mode';
+
+    themeToggle.addEventListener('click', () => {
+      const nextDarkMode = !html.classList.contains('dark');
+      html.classList.toggle('dark', nextDarkMode);
+      localStorage.setItem('darkMode', String(nextDarkMode));
+      localStorage.setItem('theme', nextDarkMode ? 'dark' : 'light');
+      if (html._x_dataStack && html._x_dataStack[0]) {
+        html._x_dataStack[0].darkMode = nextDarkMode;
+      }
+      themeIcon.textContent = nextDarkMode ? 'light_mode' : 'dark_mode';
+    });
+    
+  // Help modal wiring
+  const helpBtn = document.getElementById('help-btn');
+  const helpModal = document.getElementById('helpModal');
+  const helpModalContent = document.getElementById('helpModalContent');
+  const helpCloseBtn = document.getElementById('helpCloseBtn');
+  const helpGotIt = document.getElementById('helpGotIt');
+  const moduleHelpTemplate = document.getElementById('module-help-template');
+
+  // If the module provides a hidden #module-help, copy it into the header help button's dataset
+  function _copyModuleHelpToHeader() {
+    try {
+      const moduleHelpEl = document.getElementById('module-help');
+      if (moduleHelpEl && helpBtn) {
+        helpBtn.dataset.helpContent = moduleHelpEl.innerHTML.trim();
+      }
+    } catch (e) {}
+  }
+  document.addEventListener('DOMContentLoaded', _copyModuleHelpToHeader);
+  if (document.readyState === 'interactive' || document.readyState === 'complete') _copyModuleHelpToHeader();
+
+  function openHelpModal() {
+    // Re-evaluate DOM at click time to avoid ordering issues across templates
+    const headerDatasetHtml = (helpBtn && helpBtn.dataset && helpBtn.dataset.helpContent) ? helpBtn.dataset.helpContent : null;
+
+    function findModuleHelp() {
+      const byId = document.getElementById('module-help');
+      if (byId && byId.innerHTML.trim()) return byId.innerHTML;
+
+      const mainAreas = document.querySelectorAll('main, .module, section, #content, .page-content');
+      for (const area of mainAreas) {
+        try {
+          const el = area.querySelector('.module-help, #module-help');
+          if (el && el.innerHTML.trim()) return el.innerHTML;
+        } catch (e) {}
+      }
+
+      const any = document.querySelector('.module-help');
+      if (any && any.innerHTML.trim()) return any.innerHTML;
+
+      for (const area of mainAreas) {
+        try {
+          const btn = area.querySelector('[data-help-content]');
+          if (btn) {
+            const v = btn.getAttribute('data-help-content');
+            if (v && v.trim()) return v;
+          }
+        } catch (e) {}
+      }
+
+      const globalBtn = document.querySelector('[data-help-content]');
+      if (globalBtn) return globalBtn.getAttribute('data-help-content');
+
+      return null;
+    }
+
+    let chosenHtml = null;
+    let source = null;
+    if (headerDatasetHtml && headerDatasetHtml.trim()) { chosenHtml = headerDatasetHtml; source = 'header-dataset'; }
+    if (!chosenHtml) {
+      const found = findModuleHelp();
+      if (found && found.trim()) { chosenHtml = found; source = 'module-help'; }
+    }
+    if (!chosenHtml) {
+      const btn = document.querySelector('[data-help-content]');
+      if (btn && btn.getAttribute('data-help-content')) { chosenHtml = btn.getAttribute('data-help-content'); source = 'data-help-content'; }
+    }
+    if (!chosenHtml || !chosenHtml.trim()) {
+      chosenHtml = moduleHelpTemplate ? moduleHelpTemplate.innerHTML : '<p>No help available.</p>';
+      source = 'template-fallback';
+    }
+
+    const isGenericFallback = /No module instructions provided|To add help for a module/i.test(chosenHtml);
+    if (isGenericFallback) {
+      const direct = document.getElementById('module-help');
+      if (direct && direct.innerHTML && direct.innerHTML.trim()) { chosenHtml = direct.innerHTML; source = 'module-help-direct-after-fallback'; }
+    }
+
+    helpModalContent.innerHTML = chosenHtml;
+    try { helpModalContent.setAttribute('data-help-source', source || 'unknown'); } catch (e) {}
+    try { console && console.debug && console.debug('Help modal source:', source); } catch (e) {}
+
+    // accessibility: save previously focused element and move focus into modal
+    try {
+      window._helpPreviousFocus = document.activeElement;
+      const focusTarget = helpCloseBtn || helpModal.querySelector('button, [tabindex], a');
+      if (focusTarget) focusTarget.focus();
+    } catch (e) {}
+
+    helpModal.classList.remove('hidden');
+  }
+
+  function closeHelpModal() {
+    helpModal.classList.add('hidden');
+    try {
+      if (window._helpPreviousFocus && window._helpPreviousFocus.focus) window._helpPreviousFocus.focus();
+    } catch (e) {}
+  }
+
+  if (helpBtn) helpBtn.addEventListener('click', openHelpModal);
+  if (helpCloseBtn) helpCloseBtn.addEventListener('click', closeHelpModal);
+  if (helpGotIt) helpGotIt.addEventListener('click', closeHelpModal);
+
+    // Allow keyboard shortcut Shift+/? to open help if help button exists
+    document.addEventListener('keydown', function(e) {
+      // Shift + / usually produces ? on many layouts
+      if (helpBtn && e.shiftKey && e.key === '?') {
+        // don't open if focus is in an input
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+        openHelpModal();
+      }
+      // Esc to close
+      if (e.key === 'Escape') {
+        if (!helpModal.classList.contains('hidden')) closeHelpModal();
+      }
+    });
+</script>
+      </header>
+
+      <!-- Hidden module help content: override this block in child templates to provide contextual help -->
+      <div id="module-help-template" class="hidden">
+        {% block module_help %}
+  <p class="text-sm text-gray-700 dark:text-gray-300">No module instructions provided. To add help for a module, override the <code>{% templatetag openblock %} block module_help {% templatetag closeblock %}</code> block in that template.</p>
+        {% endblock %}
+      </div>
+
+      <!-- Page Content -->
+      <div class="taskpro-page-content p-6">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+
+  <!-- Sidebar JS -->
+  <script>
+    const menuBtn = document.getElementById("menu-btn");
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("overlay");
+
+    menuBtn.addEventListener("click", () => {
+      sidebar.classList.toggle("-translate-x-full");
+      overlay.classList.toggle("hidden");
+    });
+
+  // Wire module-level How-to buttons: any element with class 'module-howto-btn'
+  document.addEventListener('click', function(ev) {
+    const btn = ev.target.closest && ev.target.closest('.module-howto-btn');
+    if (!btn) return;
+    ev.preventDefault();
+
+    // Determine content priority: data-help-content -> data-help-target selector -> nearest .module-help -> #module-help -> module-help-template
+    let html = '';
+    if (btn.dataset && btn.dataset.helpContent) {
+      html = btn.dataset.helpContent;
+    } else if (btn.dataset && btn.dataset.helpTarget) {
+      const target = document.querySelector(btn.dataset.helpTarget);
+      if (target) html = target.innerHTML;
+    }
+
+    if (!html) {
+      // look for nearest module-help inside same module/section
+      const moduleAncestor = btn.closest('.module') || btn.closest('section') || btn.closest('main') || document;
+      const localHelp = moduleAncestor.querySelector ? moduleAncestor.querySelector('.module-help, #module-help') : null;
+      if (localHelp) html = localHelp.innerHTML;
+    }
+
+    if (!html) {
+      // fallback to module-help-template block
+      html = moduleHelpTemplate ? moduleHelpTemplate.innerHTML : '';
+    }
+
+    helpModalContent.innerHTML = html;
+    openHelpModal();
+  });
+
+    overlay.addEventListener("click", () => {
+      sidebar.classList.add("-translate-x-full");
+      overlay.classList.add("hidden");
+    });
+  </script>
+
+  <!-- Notification Polling Script -->
+  <script>
+    let notificationEventSource = null;
+    let notificationPollInterval = null;
+    let notificationReconnectTimeout = null;
+
+    function applyNotificationData(data) {
+      if (!data || !data.success) {
+        return;
+      }
+
+      const badge = document.querySelector('#notifBtn .bg-red-600');
+      const notifBtn = document.getElementById('notifBtn');
+      const notifList = document.querySelector('#notifDropdown ul');
+
+      if (data.unread_count > 0) {
+        if (badge) {
+          badge.textContent = data.unread_count;
+        } else if (notifBtn) {
+          const newBadge = document.createElement('span');
+          newBadge.className = 'absolute -top-1 -right-1 min-w-[1.15rem] h-[1.15rem] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-md shadow-red-500/25 leading-none';
+          newBadge.textContent = data.unread_count;
+          notifBtn.appendChild(newBadge);
+        }
+      } else if (badge) {
+        badge.remove();
+      }
+
+      if (notifList) {
+        if (data.notifications && data.notifications.length > 0) {
+          const rows = data.notifications.map((notif) => {
+            const unreadClass = notif.status === 'unread' ? 'bg-blue-50' : '';
+            const unreadDot = notif.status === 'unread'
+              ? '<span class="w-2 h-2 bg-red-500 rounded-full mt-1"></span>'
+              : '';
+            return `
+              <li class="border-b">
+                <a href="${notif.click_url || ('/notifications/go/' + notif.id + '/')}"
+                   data-id="${notif.id}"
+                   class="flex items-start gap-3 p-3 hover:bg-gray-50 notification-item ${unreadClass}">
+                  <span class="material-icons text-[#0072CE] text-lg">circle_notifications</span>
+                  <div class="flex-1">
+                    <p class="text-sm text-gray-700">${notif.message}</p>
+                    <p class="text-xs text-gray-500">${notif.timestamp}</p>
+                  </div>
+                  ${unreadDot}
+                </a>
+              </li>`;
+          }).join('');
+          notifList.innerHTML = rows;
+
+          notifList.querySelectorAll('.notification-item').forEach(item => {
+            item.addEventListener('click', function () {
+              const notifId = this.dataset.id;
+              fetch(`/notifications/read/${notifId}/`).catch(() => {});
+            });
+          });
+        } else {
+          notifList.innerHTML = '<li class="p-4 text-center text-gray-500 text-sm">No notifications</li>';
+        }
+      }
+    }
+
+    function pollNotifications() {
+      fetch('/notifications/count/')
+        .then(response => response.json())
+        .then(applyNotificationData)
+        .catch(() => {});
+    }
+
+    function startFallbackPolling() {
+      if (notificationPollInterval) {
+        return;
+      }
+      pollNotifications();
+      notificationPollInterval = setInterval(pollNotifications, 5000);
+    }
+
+    function stopFallbackPolling() {
+      if (!notificationPollInterval) {
+        return;
+      }
+      clearInterval(notificationPollInterval);
+      notificationPollInterval = null;
+    }
+
+    function connectNotificationStream() {
+      if (!window.EventSource) {
+        startFallbackPolling();
+        return;
+      }
+
+      if (notificationEventSource) {
+        notificationEventSource.close();
+      }
+
+      notificationEventSource = new EventSource('/notifications/stream/');
+
+      notificationEventSource.addEventListener('notification', function(event) {
+        try {
+          const streamData = JSON.parse(event.data);
+          applyNotificationData({ success: true, ...streamData });
+          stopFallbackPolling();
+        } catch (err) {
+        }
+      });
+
+      notificationEventSource.onerror = function() {
+        if (notificationEventSource) {
+          notificationEventSource.close();
+          notificationEventSource = null;
+        }
+        startFallbackPolling();
+        if (!notificationReconnectTimeout) {
+          notificationReconnectTimeout = setTimeout(() => {
+            notificationReconnectTimeout = null;
+            connectNotificationStream();
+          }, 7000);
+        }
+      };
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      pollNotifications();
+      connectNotificationStream();
+    });
+  </script>
+
+  <!-- Session Timeout Warning Script -->
+  <script>
+    (function() {
+      const SESSION_TIMEOUT = 30 * 60 * 1000;
+      const WARNING_BEFORE = 5 * 60 * 1000;
+      let lastActivity = Date.now();
+      let warningShown = false;
+      let warningModal = null;
+      
+      const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+      
+      function resetTimer() {
+        lastActivity = Date.now();
+        if (warningShown && warningModal) {
+          warningModal.remove();
+          warningShown = false;
+        }
+      }
+      
+      activityEvents.forEach(event => {
+        document.addEventListener(event, resetTimer, { passive: true });
+      });
+      
+      function createWarningModal() {
+        const modal = document.createElement('div');
+        modal.id = 'sessionWarningModal';
+        modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+        modal.innerHTML = `
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md mx-4">
+            <div class="flex items-center mb-4">
+              <span class="material-icons text-yellow-500 text-3xl mr-3">warning</span>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Session Expiring Soon</h3>
+            </div>
+            <p class="text-gray-600 dark:text-gray-300 mb-4">
+              Your session will expire in <span id="countdownTimer" class="font-bold text-red-600">5:00</span> due to inactivity.
+            </p>
+            <p class="text-gray-500 dark:text-gray-400 text-sm mb-6">
+              Click "Stay Logged In" to continue your session, or you will be automatically logged out.
+            </p>
+            <div class="flex justify-end space-x-3">
+              <a href="/" class="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                Logout Now
+              </a>
+              <button id="stayLoggedInBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                Stay Logged In
+              </button>
+            </div>
+          </div>
+        `;
+        return modal;
+      }
+      
+      function showWarning() {
+        if (warningShown) return;
+        warningShown = true;
+        warningModal = createWarningModal();
+        document.body.appendChild(warningModal);
+        
+        let remainingSeconds = WARNING_BEFORE / 1000;
+        const timerEl = document.getElementById('countdownTimer');
+        
+        const countdown = setInterval(() => {
+          remainingSeconds--;
+          const mins = Math.floor(remainingSeconds / 60);
+          const secs = remainingSeconds % 60;
+          if (timerEl) timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+          if (remainingSeconds <= 0) {
+            clearInterval(countdown);
+            window.location.href = '/';
+          }
+        }, 1000);
+        
+        document.getElementById('stayLoggedInBtn').addEventListener('click', function() {
+          clearInterval(countdown);
+          fetch('/notifications/count/', { credentials: 'same-origin' }).then(() => resetTimer());
+        });
+      }
+      
+      setInterval(() => {
+        const elapsed = Date.now() - lastActivity;
+        const timeUntilExpiry = SESSION_TIMEOUT - elapsed;
+        if (timeUntilExpiry <= WARNING_BEFORE && !warningShown) showWarning();
+        if (elapsed >= SESSION_TIMEOUT) window.location.href = '/';
+      }, 30000);
+    })();
+  </script>
+
+  <!-- Help Modal Markup -->
+  <div id="helpModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4">
+      <div class="flex justify-between items-start">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Help</h3>
+        <button id="helpCloseBtn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+      </div>
+      <div id="helpModalContent" class="mt-4 text-sm text-gray-700 dark:text-gray-300 modal-content"></div>
+      <div class="mt-6 text-right">
+        <button id="helpGotIt" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Help FAB (always visible bottom-right) -->
+  <!-- Removed duplicate; static FAB inserted near <body> opening to ensure visibility -->
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const main = document.querySelector('main') || document.body;
+
+      main.querySelectorAll('table').forEach((table) => {
+        if (table.closest('.table-container')) return;
+        if (table.classList.contains('no-auto-table-opt')) return;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'table-container';
+        table.parentNode.insertBefore(wrapper, table);
+        wrapper.appendChild(table);
+      });
+
+      main.querySelectorAll('.table-container table').forEach((table) => {
+        table.classList.add('data-table');
+      });
+
+      main.querySelectorAll('.table-container').forEach((container, index) => {
+        if (container.dataset.tableResizeInit === 'true') return;
+        container.dataset.tableResizeInit = 'true';
+        container.classList.add('table-size-compact');
+        container.classList.remove('table-size-large');
+      });
+    });
+  </script>
+
+    <script src="{% static 'js/simplemode.js' %}?v=20260430-simple3"></script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
